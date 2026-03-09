@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "561684551619",
+    "firebase_url": "https://bucket-1ede1-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "bucket-1ede1",
+    "storage_bucket": "bucket-1ede1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561684551619:android:60be1a0d15172c64700f76",
+        "android_client_info": {
+          "package_name": "sprint.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFs34UY6Jm-cbcyNDj-0WM3zSBC3KG4ak"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

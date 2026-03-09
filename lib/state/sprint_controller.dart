@@ -17,7 +17,7 @@ final sprintRepositoryProvider = Provider<SprintRepository>((ref) {
   return repository;
 });
 
-final platformChannelsProvider = Provider<SprintPlatformChannels>((ref) {
+final platformChannelsProvider = Provider<SprintPlatformAdapter>((ref) {
   final platformChannels = SprintPlatformChannels();
   ref.onDispose(platformChannels.dispose);
   return platformChannels;
@@ -36,10 +36,10 @@ final sprintControllerProvider =
 class SprintController extends StateNotifier<AppState> {
   SprintController({
     required SprintRepository repository,
-    required SprintPlatformChannels platformChannels,
-  })  : _repository = repository,
-        _platformChannels = platformChannels,
-        super(AppState.initial()) {
+    required SprintPlatformAdapter platformChannels,
+  }) : _repository = repository,
+       _platformChannels = platformChannels,
+       super(AppState.initial()) {
     _subscriptions.addAll(<StreamSubscription<dynamic>>[
       _repository.players.listen((value) {
         _dbPlayers = value;
@@ -78,7 +78,7 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   final SprintRepository _repository;
-  final SprintPlatformChannels _platformChannels;
+  final SprintPlatformAdapter _platformChannels;
 
   final List<StreamSubscription<dynamic>> _subscriptions =
       <StreamSubscription<dynamic>>[];
@@ -104,10 +104,7 @@ class SprintController extends StateNotifier<AppState> {
     state = state.copyWith(screen: screen);
   }
 
-  bool generateMatches(
-    Set<String> selectedIds,
-    PairingStrategy strategy,
-  ) {
+  bool generateMatches(Set<String> selectedIds, PairingStrategy strategy) {
     _currentPairingStrategy = strategy;
     _resetDeathMatchState();
     return _generateMatchesForRound(
@@ -117,7 +114,10 @@ class SprintController extends StateNotifier<AppState> {
     );
   }
 
-  bool startDeathMatch(Set<String> selectedIds, PairingStrategy pairingStrategy) {
+  bool startDeathMatch(
+    Set<String> selectedIds,
+    PairingStrategy pairingStrategy,
+  ) {
     if (_isClientLockedToLeaderboard()) {
       return false;
     }
@@ -137,8 +137,9 @@ class SprintController extends StateNotifier<AppState> {
 
     state = state.copyWith(
       deathMatchInProgress: true,
-      deathMatchParticipantIds:
-          selectedPlayers.map((player) => player.id).toList(growable: false),
+      deathMatchParticipantIds: selectedPlayers
+          .map((player) => player.id)
+          .toList(growable: false),
       deathMatchPairingStrategy: pairingStrategy,
       deathMatchLossesByPlayerId: {
         for (final participantId in _deathMatchParticipantIds) participantId: 0,
@@ -152,7 +153,9 @@ class SprintController extends StateNotifier<AppState> {
 
     _deathMatchByeCountsByPlayerId
       ..clear()
-      ..addEntries(_deathMatchParticipantIds.map((id) => MapEntry<String, int>(id, 0)));
+      ..addEntries(
+        _deathMatchParticipantIds.map((id) => MapEntry<String, int>(id, 0)),
+      );
     _deathMatchPreviousByePlayerId = null;
 
     return _generateDeathMatchRound();
@@ -181,12 +184,21 @@ class SprintController extends StateNotifier<AppState> {
             return match;
           }
           final updated = switch (result) {
-            MatchResult.p1 =>
-              match.copyWith(played: true, winnerId: match.player1.id, isDraw: false),
-            MatchResult.p2 =>
-              match.copyWith(played: true, winnerId: match.player2.id, isDraw: false),
-            MatchResult.draw =>
-              match.copyWith(played: true, winnerIdToNull: true, isDraw: true),
+            MatchResult.p1 => match.copyWith(
+              played: true,
+              winnerId: match.player1.id,
+              isDraw: false,
+            ),
+            MatchResult.p2 => match.copyWith(
+              played: true,
+              winnerId: match.player2.id,
+              isDraw: false,
+            ),
+            MatchResult.draw => match.copyWith(
+              played: true,
+              winnerIdToNull: true,
+              isDraw: true,
+            ),
           };
 
           shouldSubmit = !match.played;
@@ -212,15 +224,13 @@ class SprintController extends StateNotifier<AppState> {
     _applyDeathMatchResult(submittedMatch!, result);
 
     unawaited(
-      _repository.submitRoundResults(
-        <RoundResultInput>[
-          RoundResultInput(
-            p1Id: submittedMatch!.player1.id,
-            p2Id: submittedMatch!.player2.id,
-            result: result,
-          ),
-        ],
-      ),
+      _repository.submitRoundResults(<RoundResultInput>[
+        RoundResultInput(
+          p1Id: submittedMatch!.player1.id,
+          p2Id: submittedMatch!.player2.id,
+          result: result,
+        ),
+      ]),
     );
   }
 
@@ -309,12 +319,12 @@ class SprintController extends StateNotifier<AppState> {
     unawaited(_platformChannels.useDatabaseModeForLocal());
     unawaited(_platformChannels.useDatabaseModeForDirect());
     unawaited(_platformChannels.startLocalHosting(localEndpointName));
-    unawaited(_platformChannels.connectDirectTransport(localEndpointName));
+    unawaited(_platformChannels.startDirectHosting(localEndpointName));
   }
 
   void stopLocalHosting() {
     unawaited(_platformChannels.stopLocalHosting());
-    unawaited(_platformChannels.disconnectDirectTransport());
+    unawaited(_platformChannels.stopDirectHosting());
   }
 
   void scanLocalHosts(String localEndpointName) {
@@ -442,8 +452,9 @@ class SprintController extends StateNotifier<AppState> {
     if (activeParticipants.length < 2) {
       state = state.copyWith(
         deathMatchInProgress: false,
-        deathMatchChampionId:
-            activeParticipants.length == 1 ? activeParticipants.single.id : null,
+        deathMatchChampionId: activeParticipants.length == 1
+            ? activeParticipants.single.id
+            : null,
         clearDeathMatchByePlayerId: true,
         roundMatches: const <UiRoundMatch>[],
         currentMatchIndex: 0,
@@ -466,12 +477,16 @@ class SprintController extends StateNotifier<AppState> {
 
     final pairingPool = byePlayerId == null
         ? activeParticipants
-        : activeParticipants.where((participant) => participant.id != byePlayerId).toList(growable: false);
+        : activeParticipants
+              .where((participant) => participant.id != byePlayerId)
+              .toList(growable: false);
 
     if (pairingPool.length < 2) {
       state = state.copyWith(
         deathMatchInProgress: false,
-        deathMatchChampionId: pairingPool.isNotEmpty ? pairingPool.single.id : byePlayerId,
+        deathMatchChampionId: pairingPool.isNotEmpty
+            ? pairingPool.single.id
+            : byePlayerId,
         screen: Screen.deathMatchSelection,
       );
       return false;
@@ -514,8 +529,10 @@ class SprintController extends StateNotifier<AppState> {
           return byeCountCompare;
         }
 
-        final matchesCompare = (state.deathMatchMatchesPlayedByPlayerId[left.id] ?? 0)
-            .compareTo(state.deathMatchMatchesPlayedByPlayerId[right.id] ?? 0);
+        final matchesCompare =
+            (state.deathMatchMatchesPlayedByPlayerId[left.id] ?? 0).compareTo(
+              state.deathMatchMatchesPlayedByPlayerId[right.id] ?? 0,
+            );
         if (matchesCompare != 0) {
           return matchesCompare;
         }
@@ -535,11 +552,11 @@ class SprintController extends StateNotifier<AppState> {
       });
 
     return sorted
-            .firstWhere(
-              (player) => player.id != _deathMatchPreviousByePlayerId,
-              orElse: () => sorted.first,
-            )
-            .id;
+        .firstWhere(
+          (player) => player.id != _deathMatchPreviousByePlayerId,
+          orElse: () => sorted.first,
+        )
+        .id;
   }
 
   void _applyDeathMatchResult(UiRoundMatch match, MatchResult result) {
@@ -568,7 +585,9 @@ class SprintController extends StateNotifier<AppState> {
     }
 
     final losingPlayerId = result == MatchResult.p1 ? p2Id : p1Id;
-    final updatedLosses = Map<String, int>.from(state.deathMatchLossesByPlayerId);
+    final updatedLosses = Map<String, int>.from(
+      state.deathMatchLossesByPlayerId,
+    );
     updatedLosses[losingPlayerId] = (updatedLosses[losingPlayerId] ?? 0) + 1;
 
     state = state.copyWith(
@@ -607,7 +626,10 @@ class SprintController extends StateNotifier<AppState> {
     );
   }
 
-  bool _shouldShowSpeakerPrompt(SpeakerStartupState stateValue, bool dismissed) {
+  bool _shouldShowSpeakerPrompt(
+    SpeakerStartupState stateValue,
+    bool dismissed,
+  ) {
     switch (stateValue) {
       case SpeakerStartupState.checking:
       case SpeakerStartupState.connected:
@@ -630,7 +652,9 @@ class SprintController extends StateNotifier<AppState> {
 
     if (sessionState.role == LocalSessionRole.client &&
         sessionState.phase == LocalSessionPhase.connected) {
-      nextState = nextState.copyWith(leaderboardSource: LeaderboardSource.local);
+      nextState = nextState.copyWith(
+        leaderboardSource: LeaderboardSource.local,
+      );
     }
 
     state = nextState;
@@ -650,7 +674,9 @@ class SprintController extends StateNotifier<AppState> {
 
     if (sessionState.role == DirectSessionRole.client &&
         sessionState.phase == DirectSessionPhase.connected) {
-      nextState = nextState.copyWith(leaderboardSource: LeaderboardSource.direct);
+      nextState = nextState.copyWith(
+        leaderboardSource: LeaderboardSource.direct,
+      );
     }
 
     state = nextState;
@@ -661,22 +687,28 @@ class SprintController extends StateNotifier<AppState> {
     final source = state.leaderboardSource;
 
     final projectedPlayers = switch (source) {
-      LeaderboardSource.local when _localSnapshot != null => _localSnapshot!.players,
-      LeaderboardSource.direct when _directSnapshot != null => _directSnapshot!.players,
+      LeaderboardSource.local when _localSnapshot != null =>
+        _localSnapshot!.players,
+      LeaderboardSource.direct when _directSnapshot != null =>
+        _directSnapshot!.players,
       _ => _dbPlayers,
     };
 
     final projectedSync = switch (source) {
-      LeaderboardSource.local when _localSnapshot != null =>
-        SyncState(lastSyncedEpochMillis: _localSnapshot!.lastSyncedEpochMillis),
-      LeaderboardSource.direct when _directSnapshot != null =>
-        SyncState(lastSyncedEpochMillis: _directSnapshot!.lastSyncedEpochMillis),
+      LeaderboardSource.local when _localSnapshot != null => SyncState(
+        lastSyncedEpochMillis: _localSnapshot!.lastSyncedEpochMillis,
+      ),
+      LeaderboardSource.direct when _directSnapshot != null => SyncState(
+        lastSyncedEpochMillis: _directSnapshot!.lastSyncedEpochMillis,
+      ),
       _ => _dbSyncState,
     };
 
     final projectedKFactor = switch (source) {
-      LeaderboardSource.local when _localSnapshot != null => _localSnapshot!.kFactor,
-      LeaderboardSource.direct when _directSnapshot != null => _directSnapshot!.kFactor,
+      LeaderboardSource.local when _localSnapshot != null =>
+        _localSnapshot!.kFactor,
+      LeaderboardSource.direct when _directSnapshot != null =>
+        _directSnapshot!.kFactor,
       _ => _dbKFactor,
     };
 
@@ -694,7 +726,8 @@ class SprintController extends StateNotifier<AppState> {
     final localSession = state.localSessionState;
     if (localSession.role == LocalSessionRole.host) {
       final snapshot = LocalLeaderboardSnapshot(
-        hostDisplayName: localSession.localEndpointName ?? _defaultLocalEndpointName,
+        hostDisplayName:
+            localSession.localEndpointName ?? _defaultLocalEndpointName,
         generatedAtEpochMillis: DateTime.now().millisecondsSinceEpoch,
         kFactor: _dbKFactor,
         lastSyncedEpochMillis: _dbSyncState.lastSyncedEpochMillis,
@@ -706,7 +739,8 @@ class SprintController extends StateNotifier<AppState> {
     final directSession = state.directSessionState;
     if (directSession.role == DirectSessionRole.host) {
       final snapshot = LocalLeaderboardSnapshot(
-        hostDisplayName: directSession.localEndpointName ?? _defaultLocalEndpointName,
+        hostDisplayName:
+            directSession.localEndpointName ?? _defaultLocalEndpointName,
         generatedAtEpochMillis: DateTime.now().millisecondsSinceEpoch,
         kFactor: _dbKFactor,
         lastSyncedEpochMillis: _dbSyncState.lastSyncedEpochMillis,
@@ -719,11 +753,11 @@ class SprintController extends StateNotifier<AppState> {
   bool _isClientLockedToLeaderboard() {
     final localClientLocked =
         state.leaderboardSource == LeaderboardSource.local &&
-            state.localSessionState.role == LocalSessionRole.client;
+        state.localSessionState.role == LocalSessionRole.client;
 
     final directClientLocked =
         state.leaderboardSource == LeaderboardSource.direct &&
-            state.directSessionState.role == DirectSessionRole.client;
+        state.directSessionState.role == DirectSessionRole.client;
 
     return localClientLocked || directClientLocked;
   }
@@ -771,11 +805,10 @@ List<UiRoundMatch> reorderRoundMatchesToAvoidFirstMatchPlayers(
     return matches;
   }
 
-  final replacementIndex = List<int>.generate(matches.length - 1, (i) => i + 1)
-      .firstWhere(
-        (index) => !containsExcluded(matches[index]),
-        orElse: () => -1,
-      );
+  final replacementIndex = List<int>.generate(
+    matches.length - 1,
+    (i) => i + 1,
+  ).firstWhere((index) => !containsExcluded(matches[index]), orElse: () => -1);
 
   if (replacementIndex == -1) {
     return matches;
