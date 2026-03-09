@@ -18,11 +18,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import sprint.app.direct.DirectLeaderboardConnectionController
-import sprint.app.direct.DirectLeaderboardConnectionManager
-import sprint.app.direct.DirectSessionPhase
-import sprint.app.direct.DirectSessionRole
-import sprint.app.direct.DirectSessionState
 import sprint.app.domain.Player
 import sprint.app.nearby.DiscoveredHost
 import sprint.app.nearby.LocalLeaderboardConnectionController
@@ -31,35 +26,17 @@ import sprint.app.nearby.LocalLeaderboardSnapshot
 import sprint.app.nearby.LocalSessionPhase
 import sprint.app.nearby.LocalSessionRole
 import sprint.app.nearby.LocalSessionState
-import sprint.app.startup.AndroidBluetoothSnapshotProvider
-import sprint.app.startup.BluetoothPermissionState
-import sprint.app.startup.SpeakerStartupCoordinator
-import sprint.app.startup.SpeakerStartupState
 
 class SprintPlatformBridge(
     private val activity: FlutterFragmentActivity,
     messenger: BinaryMessenger,
     private val localController: LocalLeaderboardConnectionController = LocalLeaderboardConnectionManager(activity),
-    private val directController: DirectLeaderboardConnectionController = DirectLeaderboardConnectionManager(activity),
-    private val speakerStartupCoordinator: SpeakerStartupCoordinator = SpeakerStartupCoordinator(
-        bluetoothSnapshotProvider = AndroidBluetoothSnapshotProvider(activity),
-    ),
 ) : MethodChannel.MethodCallHandler {
 
     private val methodChannel = MethodChannel(messenger, CHANNEL_NAME)
     private val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var stateCollectionJob: Job? = null
     private var pendingNearbyAction: PendingNearbyAction? = null
-
-    private val bluetoothPermissionLauncher = activity.registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            refreshSpeakerStartupState()
-        } else {
-            emitSpeakerState(SpeakerStartupState.PermissionDenied)
-        }
-    }
 
     private val nearbyPermissionLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -80,7 +57,6 @@ class SprintPlatformBridge(
 
     fun attach() {
         methodChannel.setMethodCallHandler(this)
-        emitSpeakerState(SpeakerStartupState.Checking)
         startStateCollectors()
     }
 
@@ -90,7 +66,6 @@ class SprintPlatformBridge(
         stateCollectionJob = null
         bridgeScope.cancel()
         localController.useDatabaseMode()
-        directController.useDatabaseMode()
     }
 
     fun applyImmersiveMode() {
@@ -146,62 +121,9 @@ class SprintPlatformBridge(
                 result.success(null)
             }
 
-            "directStartHost" -> {
-                val localName = call.stringArg("localEndpointName")
-                directController.startHosting(localName)
-                result.success(null)
-            }
-
-            "directStopHost" -> {
-                directController.stopHosting()
-                result.success(null)
-            }
-
-            "directConnect" -> {
-                val localName = call.stringArg("localEndpointName")
-                directController.connectViaUsbTether(localName)
-                result.success(null)
-            }
-
-            "directDisconnect" -> {
-                directController.disconnect()
-                result.success(null)
-            }
-
-            "directUseDb" -> {
-                directController.useDatabaseMode()
-                result.success(null)
-            }
-
             "publishLocalSnapshot" -> {
                 val snapshot = call.requiredSnapshotArg(result) ?: return
                 localController.publishHostedSnapshot(snapshot)
-                result.success(null)
-            }
-
-            "publishDirectSnapshot" -> {
-                val snapshot = call.requiredSnapshotArg(result) ?: return
-                directController.publishHostedSnapshot(snapshot)
-                result.success(null)
-            }
-
-            "speakerRefresh" -> {
-                refreshSpeakerStartupState()
-                result.success(null)
-            }
-
-            "speakerRequestPermission" -> {
-                requestSpeakerPermission()
-                result.success(null)
-            }
-
-            "speakerOpenBluetooth" -> {
-                speakerStartupCoordinator.openBluetoothSettings(activity)
-                result.success(null)
-            }
-
-            "speakerOpenAppSettings" -> {
-                speakerStartupCoordinator.openAppSettings(activity)
                 result.success(null)
             }
 
@@ -235,61 +157,7 @@ class SprintPlatformBridge(
                     }
                 }
             }
-            launch {
-                directController.sessionState.collect { sessionState ->
-                    emitPlatformEvent(
-                        "direct_session_state",
-                        sessionState.toWireMap(),
-                    )
-                }
-            }
-            launch {
-                directController.receivedSnapshot.collect { snapshot ->
-                    if (snapshot != null) {
-                        emitPlatformEvent("direct_snapshot", snapshot.toWireMap())
-                    }
-                }
-            }
         }
-    }
-
-    private fun requestSpeakerPermission() {
-        if (!isBluetoothConnectPermissionRequired()) {
-            refreshSpeakerStartupState()
-            return
-        }
-
-        if (isBluetoothConnectPermissionGranted()) {
-            refreshSpeakerStartupState()
-            return
-        }
-
-        bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
-    }
-
-    private fun refreshSpeakerStartupState() {
-        val permissionState = when {
-            !isBluetoothConnectPermissionRequired() -> BluetoothPermissionState.GRANTED
-            isBluetoothConnectPermissionGranted() -> BluetoothPermissionState.GRANTED
-            shouldShowBluetoothConnectRationale() -> BluetoothPermissionState.REQUIRED
-            else -> BluetoothPermissionState.REQUIRED
-        }
-        emitSpeakerState(speakerStartupCoordinator.evaluateStartupState(permissionState))
-    }
-
-    private fun shouldShowBluetoothConnectRationale(): Boolean {
-        return activity.shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_CONNECT)
-    }
-
-    private fun isBluetoothConnectPermissionRequired(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    }
-
-    private fun isBluetoothConnectPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            activity,
-            Manifest.permission.BLUETOOTH_CONNECT,
-        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun ensureNearbyPermissionsAndRun(action: PendingNearbyAction) {
@@ -331,13 +199,6 @@ class SprintPlatformBridge(
         return ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun emitSpeakerState(state: SpeakerStartupState) {
-        emitPlatformEvent(
-            "speaker_state",
-            mapOf("state" to state.toWireValue()),
-        )
-    }
-
     private fun emitError(message: String) {
         emitPlatformEvent(
             "error",
@@ -364,15 +225,6 @@ class SprintPlatformBridge(
         "localEndpointName" to localEndpointName,
         "authToken" to authToken,
         "lastLocalUpdateEpochMillis" to lastLocalUpdateEpochMillis,
-        "errorMessage" to errorMessage,
-    )
-
-    private fun DirectSessionState.toWireMap(): Map<String, Any?> = mapOf(
-        "role" to role.toWireValue(),
-        "phase" to phase.toWireValue(),
-        "localEndpointName" to localEndpointName,
-        "connectedHostAddress" to connectedHostAddress,
-        "lastDirectUpdateEpochMillis" to lastDirectUpdateEpochMillis,
         "errorMessage" to errorMessage,
     )
 
@@ -414,31 +266,6 @@ class SprintPlatformBridge(
         LocalSessionPhase.CONNECTED -> "connected"
         LocalSessionPhase.DISCONNECTED -> "disconnected"
         LocalSessionPhase.ERROR -> "error"
-    }
-
-    private fun DirectSessionRole.toWireValue(): String = when (this) {
-        DirectSessionRole.NONE -> "none"
-        DirectSessionRole.HOST -> "host"
-        DirectSessionRole.CLIENT -> "client"
-    }
-
-    private fun DirectSessionPhase.toWireValue(): String = when (this) {
-        DirectSessionPhase.IDLE -> "idle"
-        DirectSessionPhase.HOSTING -> "hosting"
-        DirectSessionPhase.CONNECTING -> "connecting"
-        DirectSessionPhase.CONNECTED -> "connected"
-        DirectSessionPhase.DISCONNECTED -> "disconnected"
-        DirectSessionPhase.ERROR -> "error"
-    }
-
-    private fun SpeakerStartupState.toWireValue(): String = when (this) {
-        SpeakerStartupState.Checking -> "checking"
-        SpeakerStartupState.Connected -> "connected"
-        SpeakerStartupState.PermissionRequired -> "permission-required"
-        SpeakerStartupState.PermissionDenied -> "permission-denied"
-        SpeakerStartupState.BluetoothOff -> "bluetooth-off"
-        SpeakerStartupState.SpeakerNotConnected -> "speaker-not-connected"
-        SpeakerStartupState.SpeakerNotPaired -> "speaker-not-paired"
     }
 
     private fun MethodCall.stringArg(key: String): String {

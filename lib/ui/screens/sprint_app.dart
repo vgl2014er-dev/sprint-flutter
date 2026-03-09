@@ -25,7 +25,8 @@ class SprintApp extends ConsumerWidget {
     }.contains(state.screen);
 
     final showFooter =
-        state.screen != Screen.matchRunner && state.screen != Screen.playerProfile;
+        state.screen != Screen.matchRunner &&
+        state.screen != Screen.playerProfile;
 
     final body = switch (state.screen) {
       Screen.landing => LandingScreen(
@@ -33,9 +34,10 @@ class SprintApp extends ConsumerWidget {
         onOpenPlayers: () => controller.navigateTo(Screen.playerList),
         onOpenRandom: () => controller.navigateTo(Screen.randomPlayerSelection),
         onOpenElo: () => controller.navigateTo(Screen.eloPlayerSelection),
-        onOpenDeathMatch: () => controller.navigateTo(Screen.deathMatchSelection),
-        onOpenLeaderboard: () => controller.navigateTo(Screen.leaderboard),
+        onOpenDeathMatch: () =>
+            controller.navigateTo(Screen.deathMatchSelection),
         onStartLocalDisplay: () => controller.startLocalHosting(_deviceLabel()),
+        onConnectLocalDisplay: () => controller.scanLocalHosts(_deviceLabel()),
         onStopLocalDisplay: controller.stopLocalHosting,
       ),
       Screen.randomPlayerSelection => PlayerSelectionScreen(
@@ -43,7 +45,10 @@ class SprintApp extends ConsumerWidget {
         isEloMode: false,
         players: state.players,
         onGenerate: (selected) {
-          final success = controller.generateMatches(selected, PairingStrategy.random);
+          final success = controller.generateMatches(
+            selected,
+            PairingStrategy.random,
+          );
           if (!success) {
             _showSnack(context, 'Select at least 2 players.');
           }
@@ -54,7 +59,10 @@ class SprintApp extends ConsumerWidget {
         isEloMode: true,
         players: state.players,
         onGenerate: (selected) {
-          final success = controller.generateMatches(selected, PairingStrategy.elo);
+          final success = controller.generateMatches(
+            selected,
+            PairingStrategy.elo,
+          );
           if (!success) {
             _showSnack(context, 'Select at least 2 players.');
           }
@@ -86,18 +94,15 @@ class SprintApp extends ConsumerWidget {
       ),
       Screen.leaderboard => LeaderboardScreen(
         state: state,
-        onReset: controller.resetData,
         onViewProfile: (player) {
           if (!state.isReadOnlyClientMode) {
             controller.openProfile(player.id, Screen.leaderboard);
           }
         },
         onUseLocalConnection: () => controller.scanLocalHosts(_deviceLabel()),
-        onUseDirectConnection: () => controller.connectDirectTransport(_deviceLabel()),
         onUseDatabase: controller.useDatabaseLeaderboard,
         onConnectHost: controller.connectToLocalHost,
         onDisconnectLocal: controller.disconnectLocalConnection,
-        onDisconnectDirect: controller.disconnectDirectConnection,
       ),
       Screen.playerList => PlayerListScreen(
         players: state.players,
@@ -137,7 +142,9 @@ class SprintApp extends ConsumerWidget {
               if (showHeader)
                 AppHeader(
                   title: _headerTitle(state.screen),
-                  onBack: state.isReadOnlyClientMode && state.screen == Screen.leaderboard
+                  onBack:
+                      state.isReadOnlyClientMode &&
+                          state.screen == Screen.leaderboard
                       ? null
                       : () {
                           if (state.screen == Screen.playerProfile) {
@@ -146,29 +153,31 @@ class SprintApp extends ConsumerWidget {
                           }
                           controller.navigateTo(Screen.landing);
                         },
+                  actionIcon:
+                      state.screen == Screen.leaderboard &&
+                          !state.isReadOnlyClientMode
+                      ? Icons.refresh_rounded
+                      : null,
+                  actionTooltip:
+                      state.screen == Screen.leaderboard &&
+                          !state.isReadOnlyClientMode
+                      ? 'Reset leaderboard'
+                      : null,
+                  onAction:
+                      state.screen == Screen.leaderboard &&
+                          !state.isReadOnlyClientMode
+                      ? () async {
+                          final confirm = await _showResetLeaderboardDialog(
+                            context,
+                          );
+                          if (confirm) {
+                            controller.resetData();
+                          }
+                        }
+                      : null,
                 ),
-              if (state.shouldShowSpeakerPrompt)
-                SpeakerPromptBanner(
-                  state: state.speakerStartupState,
-                  onDismiss: controller.dismissSpeakerPromptForThisLaunch,
-                  onPrimary: () {
-                    switch (state.speakerStartupState) {
-                      case SpeakerStartupState.permissionRequired:
-                        controller.refreshSpeakerStartupState();
-                      case SpeakerStartupState.permissionDenied:
-                        controller.openAppSettings();
-                      case SpeakerStartupState.bluetoothOff:
-                      case SpeakerStartupState.speakerNotConnected:
-                      case SpeakerStartupState.speakerNotPaired:
-                        controller.openBluetoothSettings();
-                      case SpeakerStartupState.checking:
-                      case SpeakerStartupState.connected:
-                        controller.refreshSpeakerStartupState();
-                    }
-                  },
-                  onSecondary: controller.refreshSpeakerStartupState,
-                ),
-              if (state.localSessionState.phase == LocalSessionPhase.awaitingApproval)
+              if (state.localSessionState.phase ==
+                  LocalSessionPhase.awaitingApproval)
                 LocalApprovalBanner(
                   sessionState: state.localSessionState,
                   onAccept: controller.acceptLocalConnection,
@@ -212,9 +221,32 @@ String _headerTitle(Screen screen) {
 }
 
 void _showSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+Future<bool> _showResetLeaderboardDialog(BuildContext context) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Reset Leaderboard?'),
+        content: const Text(
+          'Delete all match history and reset all players to 1200 Elo.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Reset Data'),
+          ),
+        ],
+      );
+    },
   );
+  return confirm == true;
 }
 
 String _deviceLabel() => 'Sprint Device';
@@ -223,11 +255,17 @@ class AppHeader extends StatelessWidget {
   const AppHeader({
     required this.title,
     required this.onBack,
+    this.actionIcon,
+    this.actionTooltip,
+    this.onAction,
     super.key,
   });
 
   final String title;
   final VoidCallback? onBack;
+  final IconData? actionIcon;
+  final String? actionTooltip;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -253,100 +291,16 @@ class AppHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            if (actionIcon != null)
+              IconButton(
+                onPressed: onAction,
+                tooltip: actionTooltip,
+                icon: Icon(actionIcon),
+              )
+            else
+              const SizedBox(width: 48),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class SpeakerPromptBanner extends StatelessWidget {
-  const SpeakerPromptBanner({
-    required this.state,
-    required this.onDismiss,
-    required this.onPrimary,
-    required this.onSecondary,
-    super.key,
-  });
-
-  final SpeakerStartupState state;
-  final VoidCallback onDismiss;
-  final VoidCallback onPrimary;
-  final VoidCallback onSecondary;
-
-  @override
-  Widget build(BuildContext context) {
-    final (title, message, primary) = switch (state) {
-      SpeakerStartupState.permissionRequired => (
-          'Bluetooth Permission Required',
-          'Grant Bluetooth permission so startup checks can run.',
-          'Grant Permission',
-        ),
-      SpeakerStartupState.permissionDenied => (
-          'Bluetooth Permission Denied',
-          'Open app settings and enable Bluetooth permission.',
-          'Open App Settings',
-        ),
-      SpeakerStartupState.bluetoothOff => (
-          'Bluetooth Is Off',
-          'Turn Bluetooth on to connect your speaker.',
-          'Open Bluetooth',
-        ),
-      SpeakerStartupState.speakerNotConnected => (
-          'Speaker Not Connected',
-          'Connect your speaker in Bluetooth settings, then retry.',
-          'Open Bluetooth',
-        ),
-      SpeakerStartupState.speakerNotPaired => (
-          'Speaker Not Paired',
-          'Pair your MEGABLAST speaker, then retry.',
-          'Open Bluetooth',
-        ),
-      SpeakerStartupState.checking => (
-          'Checking Speaker',
-          'Checking Bluetooth and speaker status.',
-          'Retry',
-        ),
-      SpeakerStartupState.connected => (
-          'Speaker Connected',
-          'Startup checks passed.',
-          'Retry',
-        ),
-    };
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFCD34D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
-            ],
-          ),
-          Text(message, style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              ElevatedButton(onPressed: onPrimary, child: Text(primary)),
-              const SizedBox(width: 8),
-              OutlinedButton(onPressed: onSecondary, child: const Text('Retry')),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -415,9 +369,17 @@ class AppFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <({Screen screen, IconData icon, String label})>[
       (screen: Screen.landing, icon: Icons.home_rounded, label: 'Home'),
-      (screen: Screen.leaderboard, icon: Icons.emoji_events_rounded, label: 'Leaderboard'),
+      (
+        screen: Screen.leaderboard,
+        icon: Icons.emoji_events_rounded,
+        label: 'Leaderboard',
+      ),
       (screen: Screen.playerList, icon: Icons.people_rounded, label: 'Players'),
-      (screen: Screen.settings, icon: Icons.settings_rounded, label: 'Settings'),
+      (
+        screen: Screen.settings,
+        icon: Icons.settings_rounded,
+        label: 'Settings',
+      ),
     ];
 
     return Container(
@@ -427,31 +389,37 @@ class AppFooter extends StatelessWidget {
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
       child: Row(
-        children: items.map((item) {
-          final active = currentScreen == item.screen;
-          return Expanded(
-            child: InkWell(
-              onTap: disabled ? null : () => onNavigate(item.screen),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    item.icon,
-                    color: active ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+        children: items
+            .map((item) {
+              final active = currentScreen == item.screen;
+              return Expanded(
+                child: InkWell(
+                  onTap: disabled ? null : () => onNavigate(item.screen),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(
+                        item.icon,
+                        color: active
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFF94A3B8),
+                      ),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: active
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: active ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(growable: false),
+                ),
+              );
+            })
+            .toList(growable: false),
       ),
     );
   }
@@ -464,8 +432,8 @@ class LandingScreen extends StatelessWidget {
     required this.onOpenRandom,
     required this.onOpenElo,
     required this.onOpenDeathMatch,
-    required this.onOpenLeaderboard,
     required this.onStartLocalDisplay,
+    required this.onConnectLocalDisplay,
     required this.onStopLocalDisplay,
     super.key,
   });
@@ -475,8 +443,8 @@ class LandingScreen extends StatelessWidget {
   final VoidCallback onOpenRandom;
   final VoidCallback onOpenElo;
   final VoidCallback onOpenDeathMatch;
-  final VoidCallback onOpenLeaderboard;
   final VoidCallback onStartLocalDisplay;
+  final VoidCallback onConnectLocalDisplay;
   final VoidCallback onStopLocalDisplay;
 
   @override
@@ -488,7 +456,10 @@ class LandingScreen extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            IconButton(onPressed: onOpenPlayers, icon: const Icon(Icons.people_rounded)),
+            IconButton(
+              onPressed: onOpenPlayers,
+              icon: const Icon(Icons.people_rounded),
+            ),
             const Expanded(
               child: Text(
                 'Sprint Duels',
@@ -497,7 +468,9 @@ class LandingScreen extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () => SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+              onPressed: () => SystemChrome.setEnabledSystemUIMode(
+                SystemUiMode.immersiveSticky,
+              ),
               icon: const Icon(Icons.fullscreen_rounded),
             ),
           ],
@@ -539,13 +512,16 @@ class LandingScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text('Offline Mirror', style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text(
+                'Offline Mirror',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 6),
               Text(
                 localActive
                     ? (localSessionState.phase == LocalSessionPhase.connected
-                        ? '${localSessionState.connectedHostName ?? 'Display device'} is receiving live updates.'
-                        : 'Hosting nearby mirror as ${localSessionState.localEndpointName ?? 'Sprint Device'}.')
+                          ? '${localSessionState.connectedHostName ?? 'Display device'} is receiving live updates.'
+                          : 'Hosting nearby mirror as ${localSessionState.localEndpointName ?? 'Sprint Device'}.')
                     : 'A nearby second device can mirror the leaderboard without internet.',
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
               ),
@@ -561,20 +537,28 @@ class LandingScreen extends StatelessWidget {
               Row(
                 children: <Widget>[
                   ElevatedButton.icon(
-                    onPressed: localActive ? onStopLocalDisplay : onStartLocalDisplay,
-                    icon: Icon(localActive ? Icons.stop_rounded : Icons.play_arrow_rounded),
-                    label: Text(localActive ? 'Stop' : 'Start'),
+                    onPressed: localActive
+                        ? onStopLocalDisplay
+                        : onStartLocalDisplay,
+                    icon: Icon(
+                      localActive
+                          ? Icons.stop_rounded
+                          : Icons.play_arrow_rounded,
+                    ),
+                    label: Text(localActive ? 'Stop' : 'Host'),
                   ),
+                  if (!localActive) ...<Widget>[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: onConnectLocalDisplay,
+                      icon: const Icon(Icons.wifi_tethering_rounded),
+                      label: const Text('Connect'),
+                    ),
+                  ],
                 ],
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: onOpenLeaderboard,
-          icon: const Icon(Icons.leaderboard_rounded),
-          label: const Text('View Leaderboard'),
         ),
       ],
     );
@@ -645,8 +629,7 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final sortedPlayers = widget.isEloMode
-        ? (List<Player>.from(widget.players)
-          ..sort((left, right) {
+        ? (List<Player>.from(widget.players)..sort((left, right) {
             final byElo = right.elo.compareTo(left.elo);
             return byElo == 0 ? left.name.compareTo(right.name) : byElo;
           }))
@@ -658,12 +641,16 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: <Widget>[
-              Text('${_selectedIds.length} / ${widget.players.length} selected'),
+              Text(
+                '${_selectedIds.length} / ${widget.players.length} selected',
+              ),
               const Spacer(),
               TextButton(
                 onPressed: () {
                   setState(() {
-                    _selectedIds = widget.players.map((player) => player.id).toSet();
+                    _selectedIds = widget.players
+                        .map((player) => player.id)
+                        .toSet();
                   });
                 },
                 child: const Text('Select All'),
@@ -684,41 +671,55 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
             crossAxisCount: 3,
             childAspectRatio: 2.2,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: sortedPlayers.map((player) {
-              final selected = _selectedIds.contains(player.id);
-              return Card(
-                color: selected ? const Color(0xFFE2E8F0) : Colors.white,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (selected) {
-                        _selectedIds.remove(player.id);
-                      } else {
-                        _selectedIds.add(player.id);
-                      }
-                    });
-                  },
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Text(player.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        if (widget.isEloMode)
-                          Text('Elo ${player.elo}', style: const TextStyle(fontSize: 11)),
-                      ],
+            children: sortedPlayers
+                .map((player) {
+                  final selected = _selectedIds.contains(player.id);
+                  return Card(
+                    color: selected ? const Color(0xFFE2E8F0) : Colors.white,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (selected) {
+                            _selectedIds.remove(player.id);
+                          } else {
+                            _selectedIds.add(player.id);
+                          }
+                        });
+                      },
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Text(
+                              player.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (widget.isEloMode)
+                              Text(
+                                'Elo ${player.elo}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }).toList(growable: false),
+                  );
+                })
+                .toList(growable: false),
           ),
         ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton.icon(
-            onPressed: _selectedIds.length < 2 ? null : () => widget.onGenerate(_selectedIds),
+            onPressed: _selectedIds.length < 2
+                ? null
+                : () => widget.onGenerate(_selectedIds),
             icon: const Icon(Icons.play_arrow_rounded),
-            label: Text(widget.isEloMode ? 'Generate Elo Matches' : 'Generate Matches'),
+            label: Text(
+              widget.isEloMode ? 'Generate Elo Matches' : 'Generate Matches',
+            ),
           ),
         ),
       ],
@@ -751,7 +752,8 @@ class DeathMatchSelectionScreen extends StatefulWidget {
   final VoidCallback onResume;
 
   @override
-  State<DeathMatchSelectionScreen> createState() => _DeathMatchSelectionScreenState();
+  State<DeathMatchSelectionScreen> createState() =>
+      _DeathMatchSelectionScreenState();
 }
 
 class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
@@ -762,7 +764,8 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
   void initState() {
     super.initState();
     _selectedIds = widget.players.map((player) => player.id).toSet();
-    _pairingStrategy = widget.deathMatchPairingStrategy ?? PairingStrategy.random;
+    _pairingStrategy =
+        widget.deathMatchPairingStrategy ?? PairingStrategy.random;
   }
 
   @override
@@ -783,12 +786,28 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(Icons.emoji_events_rounded, color: Color(0xFFF59E0B), size: 64),
+                const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Color(0xFFF59E0B),
+                  size: 64,
+                ),
                 const SizedBox(height: 12),
-                const Text('Death Match Winner', style: TextStyle(fontWeight: FontWeight.w700)),
-                Text(champion.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                const Text(
+                  'Death Match Winner',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  champion.name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 12),
-                ElevatedButton(onPressed: widget.onReset, child: const Text('Start New Tournament')),
+                ElevatedButton(
+                  onPressed: widget.onReset,
+                  child: const Text('Start New Tournament'),
+                ),
               ],
             ),
           ),
@@ -797,12 +816,14 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
     }
 
     if (widget.deathMatchInProgress) {
-      final survivors = widget.players.where((player) {
-        if (!widget.deathMatchParticipantIds.contains(player.id)) {
-          return false;
-        }
-        return (widget.deathMatchLossesByPlayerId[player.id] ?? 0) < 2;
-      }).toList(growable: false);
+      final survivors = widget.players
+          .where((player) {
+            if (!widget.deathMatchParticipantIds.contains(player.id)) {
+              return false;
+            }
+            return (widget.deathMatchLossesByPlayerId[player.id] ?? 0) < 2;
+          })
+          .toList(growable: false);
 
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -812,13 +833,18 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text('Death Match In Progress', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                const Text(
+                  'Death Match In Progress',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   '${widget.deathMatchPairingStrategy == PairingStrategy.elo ? 'Elo' : 'Random'} pairing is locked for this tournament.',
                 ),
                 const SizedBox(height: 8),
-                Text('Survivors: ${survivors.length} / ${widget.deathMatchParticipantIds.length}'),
+                Text(
+                  'Survivors: ${survivors.length} / ${widget.deathMatchParticipantIds.length}',
+                ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: ListView(
@@ -827,15 +853,23 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
                           (player) => ListTile(
                             dense: true,
                             title: Text(player.name),
-                            trailing: Text('losses ${widget.deathMatchLossesByPlayerId[player.id] ?? 0}/2'),
+                            trailing: Text(
+                              'losses ${widget.deathMatchLossesByPlayerId[player.id] ?? 0}/2',
+                            ),
                           ),
                         )
                         .toList(growable: false),
                   ),
                 ),
                 const SizedBox(height: 8),
-                ElevatedButton(onPressed: widget.onResume, child: const Text('Continue Tournament')),
-                OutlinedButton(onPressed: widget.onReset, child: const Text('Reset Tournament')),
+                ElevatedButton(
+                  onPressed: widget.onResume,
+                  child: const Text('Continue Tournament'),
+                ),
+                OutlinedButton(
+                  onPressed: widget.onReset,
+                  child: const Text('Reset Tournament'),
+                ),
               ],
             ),
           ),
@@ -849,7 +883,10 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: <Widget>[
-              const Text('Setup', style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text(
+                'Setup',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               const Spacer(),
               SegmentedButton<PairingStrategy>(
                 segments: const <ButtonSegment<PairingStrategy>>[
@@ -879,26 +916,31 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
             crossAxisCount: 3,
             childAspectRatio: 2.2,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: widget.players.map((player) {
-              final selected = _selectedIds.contains(player.id);
-              return Card(
-                color: selected ? const Color(0xFFFEE2E2) : Colors.white,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (selected) {
-                        _selectedIds.remove(player.id);
-                      } else {
-                        _selectedIds.add(player.id);
-                      }
-                    });
-                  },
-                  child: Center(
-                    child: Text(player.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              );
-            }).toList(growable: false),
+            children: widget.players
+                .map((player) {
+                  final selected = _selectedIds.contains(player.id);
+                  return Card(
+                    color: selected ? const Color(0xFFFEE2E2) : Colors.white,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (selected) {
+                            _selectedIds.remove(player.id);
+                          } else {
+                            _selectedIds.add(player.id);
+                          }
+                        });
+                      },
+                      child: Center(
+                        child: Text(
+                          player.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  );
+                })
+                .toList(growable: false),
           ),
         ),
         Padding(
@@ -940,7 +982,8 @@ class MatchRunnerScreen extends StatelessWidget {
     final currentMatch = matches.isEmpty
         ? null
         : matches[state.currentMatchIndex.clamp(0, matches.length - 1)];
-    final allPlayed = matches.isNotEmpty && matches.every((match) => match.played);
+    final allPlayed =
+        matches.isNotEmpty && matches.every((match) => match.played);
 
     if (allPlayed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -954,7 +997,10 @@ class MatchRunnerScreen extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded)),
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
               Expanded(
                 child: Text(
                   state.deathMatchInProgress
@@ -964,7 +1010,10 @@ class MatchRunnerScreen extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
+              IconButton(
+                onPressed: onClose,
+                icon: const Icon(Icons.close_rounded),
+              ),
             ],
           ),
           if (state.deathMatchInProgress)
@@ -976,7 +1025,9 @@ class MatchRunnerScreen extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFFDA4AF)),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text('Two losses eliminates a player. Draws do not add losses.'),
+              child: const Text(
+                'Two losses eliminates a player. Draws do not add losses.',
+              ),
             ),
           Expanded(
             child: currentMatch == null
@@ -985,7 +1036,8 @@ class MatchRunnerScreen extends StatelessWidget {
                     match: currentMatch,
                     history: state.history,
                     isDeathMatch: state.deathMatchInProgress,
-                    deathMatchLossesByPlayerId: state.deathMatchLossesByPlayerId,
+                    deathMatchLossesByPlayerId:
+                        state.deathMatchLossesByPlayerId,
                     deathMatchMatchesPlayedByPlayerId:
                         state.deathMatchMatchesPlayedByPlayerId,
                     onStart: () {
@@ -1009,9 +1061,9 @@ class MatchRunnerScreen extends StatelessWidget {
 }
 
 int _survivorsCount(AppState state) {
-  return state.deathMatchParticipantIds.where(
-    (id) => (state.deathMatchLossesByPlayerId[id] ?? 0) < 2,
-  ).length;
+  return state.deathMatchParticipantIds
+      .where((id) => (state.deathMatchLossesByPlayerId[id] ?? 0) < 2)
+      .length;
 }
 
 class _MatchCard extends StatelessWidget {
@@ -1039,12 +1091,14 @@ class _MatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h2h = history.where((entry) {
-      final p1Id = match.player1.id;
-      final p2Id = match.player2.id;
-      return (entry.p1Id == p1Id && entry.p2Id == p2Id) ||
-          (entry.p1Id == p2Id && entry.p2Id == p1Id);
-    }).toList(growable: false);
+    final h2h = history
+        .where((entry) {
+          final p1Id = match.player1.id;
+          final p2Id = match.player2.id;
+          return (entry.p1Id == p1Id && entry.p2Id == p2Id) ||
+              (entry.p1Id == p2Id && entry.p2Id == p1Id);
+        })
+        .toList(growable: false);
 
     final p1WinRate = _winRateFor(match.player1.id, h2h);
     final p2WinRate = _winRateFor(match.player2.id, h2h);
@@ -1061,7 +1115,8 @@ class _MatchCard extends StatelessWidget {
             const SizedBox(height: 12),
             _ResultButton(
               label: '${match.player1.name.toUpperCase()} WINS',
-              subtitle: 'Elo: ${match.player1.elo} · ${p1WinRate.toStringAsFixed(0)}%',
+              subtitle:
+                  'Elo: ${match.player1.elo} · ${p1WinRate.toStringAsFixed(0)}%',
               active: match.played && match.winnerId == match.player1.id,
               enabled: match.started && !match.played,
               onPressed: onP1,
@@ -1069,7 +1124,8 @@ class _MatchCard extends StatelessWidget {
             const SizedBox(height: 8),
             _ResultButton(
               label: '${match.player2.name.toUpperCase()} WINS',
-              subtitle: 'Elo: ${match.player2.elo} · ${p2WinRate.toStringAsFixed(0)}%',
+              subtitle:
+                  'Elo: ${match.player2.elo} · ${p2WinRate.toStringAsFixed(0)}%',
               active: match.played && match.winnerId == match.player2.id,
               enabled: match.started && !match.played,
               onPressed: onP2,
@@ -1136,25 +1192,19 @@ class _ResultButton extends StatelessWidget {
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({
     required this.state,
-    required this.onReset,
     required this.onViewProfile,
     required this.onUseLocalConnection,
-    required this.onUseDirectConnection,
     required this.onUseDatabase,
     required this.onConnectHost,
     required this.onDisconnectLocal,
-    required this.onDisconnectDirect,
     super.key,
   });
 
   final AppState state;
-  final VoidCallback onReset;
   final ValueChanged<Player> onViewProfile;
   final VoidCallback onUseLocalConnection;
-  final VoidCallback onUseDirectConnection;
   final VoidCallback onUseDatabase;
   final VoidCallback onDisconnectLocal;
-  final VoidCallback onDisconnectDirect;
   final ValueChanged<String> onConnectHost;
 
   @override
@@ -1163,7 +1213,6 @@ class LeaderboardScreen extends StatelessWidget {
       ..sort((left, right) => right.elo.compareTo(left.elo));
 
     final isLocalSource = state.leaderboardSource == LeaderboardSource.local;
-    final isDirectSource = state.leaderboardSource == LeaderboardSource.direct;
 
     return Column(
       children: <Widget>[
@@ -1172,41 +1221,10 @@ class LeaderboardScreen extends StatelessWidget {
           child: Wrap(
             spacing: 8,
             children: <Widget>[
-              if (!isLocalSource)
-                OutlinedButton(onPressed: onUseLocalConnection, child: const Text('Use Local')),
-              if (!isDirectSource)
-                OutlinedButton(onPressed: onUseDirectConnection, child: const Text('Use Direct')),
-              if (isLocalSource || isDirectSource)
-                OutlinedButton(onPressed: onUseDatabase, child: const Text('Use DB')),
-              if (!state.isReadOnlyClientMode)
+              if (isLocalSource)
                 OutlinedButton(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) {
-                        return AlertDialog(
-                          title: const Text('Reset Leaderboard?'),
-                          content: const Text(
-                            'Delete all match history and reset all players to 1200 Elo.',
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(false),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(true),
-                              child: const Text('Reset Data'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    if (confirm == true) {
-                      onReset();
-                    }
-                  },
-                  child: const Text('Reset'),
+                  onPressed: onUseDatabase,
+                  child: const Text('Use DB'),
                 ),
             ],
           ),
@@ -1221,33 +1239,32 @@ class LeaderboardScreen extends StatelessWidget {
             onConnectHost: onConnectHost,
             onDisconnectLocal: onDisconnectLocal,
           ),
-        if (state.directSessionState.role == DirectSessionRole.client ||
-            state.leaderboardSource == LeaderboardSource.direct)
-          _DirectPanel(
-            state: state.directSessionState,
-            isDirectSource: isDirectSource,
-            onUseDirectConnection: onUseDirectConnection,
-            onDisconnectDirect: onDisconnectDirect,
-          ),
         Expanded(
           child: ListView.builder(
             itemCount: sortedPlayers.length,
             itemBuilder: (context, index) {
               final player = sortedPlayers[index];
               final matches = player.wins + player.losses + player.draws;
-              final winRate = matches == 0 ? 0 : (player.wins / matches * 100).round();
+              final winRate = matches == 0
+                  ? 0
+                  : (player.wins / matches * 100).round();
               return ListTile(
-                onTap: state.isReadOnlyClientMode ? null : () => onViewProfile(player),
+                onTap: state.isReadOnlyClientMode
+                    ? null
+                    : () => onViewProfile(player),
                 leading: Text(
                   index == 0
                       ? '🥇'
                       : index == 1
-                          ? '🥈'
-                          : index == 2
-                              ? '🥉'
-                              : '${index + 1}',
+                      ? '🥈'
+                      : index == 2
+                      ? '🥉'
+                      : '${index + 1}',
                 ),
-                title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                title: Text(
+                  player.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 subtitle: Text('Win rate: $winRate%'),
                 trailing: Text(
                   '${player.elo}',
@@ -1298,9 +1315,15 @@ class _LocalPanel extends StatelessWidget {
               if (state.phase == LocalSessionPhase.discovering ||
                   state.phase == LocalSessionPhase.disconnected ||
                   state.phase == LocalSessionPhase.error)
-                TextButton(onPressed: onUseLocalConnection, child: const Text('Reconnect')),
+                TextButton(
+                  onPressed: onUseLocalConnection,
+                  child: const Text('Reconnect'),
+                ),
               if (isLocalSource && state.phase == LocalSessionPhase.connected)
-                TextButton(onPressed: onDisconnectLocal, child: const Text('Disconnect')),
+                TextButton(
+                  onPressed: onDisconnectLocal,
+                  child: const Text('Disconnect'),
+                ),
             ],
           ),
           ...state.discoveredHosts.map(
@@ -1313,50 +1336,6 @@ class _LocalPanel extends StatelessWidget {
                 child: const Text('Connect'),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DirectPanel extends StatelessWidget {
-  const _DirectPanel({
-    required this.state,
-    required this.isDirectSource,
-    required this.onUseDirectConnection,
-    required this.onDisconnectDirect,
-  });
-
-  final DirectSessionState state;
-  final bool isDirectSource;
-  final VoidCallback onUseDirectConnection;
-  final VoidCallback onDisconnectDirect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
-        border: Border.all(color: const Color(0xFFA5B4FC)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text('Direct USB', style: TextStyle(fontWeight: FontWeight.w700)),
-          Text(_directPhaseText(state), style: const TextStyle(fontSize: 12)),
-          Wrap(
-            spacing: 8,
-            children: <Widget>[
-              if (state.phase == DirectSessionPhase.disconnected ||
-                  state.phase == DirectSessionPhase.error)
-                TextButton(onPressed: onUseDirectConnection, child: const Text('Reconnect')),
-              if (isDirectSource && state.phase == DirectSessionPhase.connected)
-                TextButton(onPressed: onDisconnectDirect, child: const Text('Disconnect')),
-            ],
           ),
         ],
       ),
@@ -1384,23 +1363,6 @@ String _localPhaseText(LocalSessionState state) {
   }
 }
 
-String _directPhaseText(DirectSessionState state) {
-  switch (state.phase) {
-    case DirectSessionPhase.hosting:
-      return 'Direct host listener is active.';
-    case DirectSessionPhase.connecting:
-      return 'Connecting to USB tether host...';
-    case DirectSessionPhase.connected:
-      return 'Connected to ${state.connectedHostAddress ?? 'host'}.';
-    case DirectSessionPhase.disconnected:
-      return 'Connection lost. Showing latest snapshot.';
-    case DirectSessionPhase.error:
-      return state.errorMessage ?? 'Direct connection failed.';
-    case DirectSessionPhase.idle:
-      return 'Connect over USB tethering.';
-  }
-}
-
 class PlayerListScreen extends StatelessWidget {
   const PlayerListScreen({
     required this.players,
@@ -1423,7 +1385,10 @@ class PlayerListScreen extends StatelessWidget {
         return ListTile(
           onTap: () => onViewProfile(player),
           leading: const CircleAvatar(child: Icon(Icons.person_rounded)),
-          title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(
+            player.name,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           subtitle: Text('Elo: ${player.elo}'),
         );
       },
@@ -1467,21 +1432,25 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
         ? 0
         : ((player.wins / player.matchesPlayed) * 100).toStringAsFixed(1);
 
-    final summaries = widget.players
-        .where((candidate) => candidate.id != player.id)
-        .map(
-          (candidate) => (
-            opponent: candidate,
-            summary: HeadToHeadCalculator.calculateForPlayer(
-              player.id,
-              candidate.id,
-              widget.history,
-            ),
-          ),
-        )
-        .where((entry) => entry.summary.matches > 0)
-        .toList(growable: false)
-      ..sort((left, right) => right.summary.matches.compareTo(left.summary.matches));
+    final summaries =
+        widget.players
+            .where((candidate) => candidate.id != player.id)
+            .map(
+              (candidate) => (
+                opponent: candidate,
+                summary: HeadToHeadCalculator.calculateForPlayer(
+                  player.id,
+                  candidate.id,
+                  widget.history,
+                ),
+              ),
+            )
+            .where((entry) => entry.summary.matches > 0)
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.summary.matches.compareTo(left.summary.matches),
+          );
 
     return Stack(
       children: <Widget>[
@@ -1513,7 +1482,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                         children: <Widget>[
                           const Padding(
                             padding: EdgeInsets.all(8),
-                            child: Text('Head to Head', style: TextStyle(fontWeight: FontWeight.w700)),
+                            child: Text(
+                              'Head to Head',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           Expanded(
                             child: ListView(
@@ -1525,7 +1497,9 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                                       subtitle: Text(
                                         'M ${entry.summary.matches} · ${entry.summary.wins}-${entry.summary.losses}-${entry.summary.draws}',
                                       ),
-                                      trailing: Text('${entry.summary.winRatePercent}%'),
+                                      trailing: Text(
+                                        '${entry.summary.winRatePercent}%',
+                                      ),
                                     ),
                                   )
                                   .toList(growable: false),
@@ -1542,63 +1516,75 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                         children: <Widget>[
                           const Padding(
                             padding: EdgeInsets.all(8),
-                            child: Text('Recent Matches', style: TextStyle(fontWeight: FontWeight.w700)),
+                            child: Text(
+                              'Recent Matches',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           Expanded(
                             child: ListView(
-                              children: playerHistory.take(20).map((entry) {
-                                final isP1 = entry.p1Id == player.id;
-                                final opponentName = isP1 ? entry.p2Name : entry.p1Name;
-                                final eloChange = isP1
-                                    ? entry.p1EloAfter - entry.p1EloBefore
-                                    : entry.p2EloAfter - entry.p2EloBefore;
-                                final isWin =
-                                    (isP1 && entry.result == MatchResult.p1) ||
-                                    (!isP1 && entry.result == MatchResult.p2);
-                                final isLoss =
-                                    (isP1 && entry.result == MatchResult.p2) ||
-                                    (!isP1 && entry.result == MatchResult.p1);
-                                final result = isWin
-                                    ? 'WIN'
-                                    : isLoss
+                              children: playerHistory
+                                  .take(20)
+                                  .map((entry) {
+                                    final isP1 = entry.p1Id == player.id;
+                                    final opponentName = isP1
+                                        ? entry.p2Name
+                                        : entry.p1Name;
+                                    final eloChange = isP1
+                                        ? entry.p1EloAfter - entry.p1EloBefore
+                                        : entry.p2EloAfter - entry.p2EloBefore;
+                                    final isWin =
+                                        (isP1 &&
+                                            entry.result == MatchResult.p1) ||
+                                        (!isP1 &&
+                                            entry.result == MatchResult.p2);
+                                    final isLoss =
+                                        (isP1 &&
+                                            entry.result == MatchResult.p2) ||
+                                        (!isP1 &&
+                                            entry.result == MatchResult.p1);
+                                    final result = isWin
+                                        ? 'WIN'
+                                        : isLoss
                                         ? 'LOSS'
                                         : 'DRAW';
 
-                                return ListTile(
-                                  dense: true,
-                                  title: Text('vs $opponentName'),
-                                  subtitle: Text(
-                                    DateTime.fromMillisecondsSinceEpoch(entry.timestamp)
-                                        .toLocal()
-                                        .toString()
-                                        .split('.')
-                                        .first,
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      Text(result),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${eloChange >= 0 ? '+' : ''}$eloChange',
-                                        style: TextStyle(
-                                          color: eloChange >= 0
-                                              ? const Color(0xFF10B981)
-                                              : const Color(0xFFEF4444),
-                                        ),
+                                    return ListTile(
+                                      dense: true,
+                                      title: Text('vs $opponentName'),
+                                      subtitle: Text(
+                                        DateTime.fromMillisecondsSinceEpoch(
+                                          entry.timestamp,
+                                        ).toLocal().toString().split('.').first,
                                       ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _matchToDelete = entry.id;
-                                          });
-                                        },
-                                        icon: const Icon(Icons.delete_outline_rounded),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          Text(result),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${eloChange >= 0 ? '+' : ''}$eloChange',
+                                            style: TextStyle(
+                                              color: eloChange >= 0
+                                                  ? const Color(0xFF10B981)
+                                                  : const Color(0xFFEF4444),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _matchToDelete = entry.id;
+                                              });
+                                            },
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(growable: false),
+                                    );
+                                  })
+                                  .toList(growable: false),
                             ),
                           ),
                         ],
@@ -1681,9 +1667,18 @@ class _StatCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
               const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                ),
+              ),
             ],
           ),
         ),
@@ -1714,25 +1709,33 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text('Elo K-Factor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
+              const Text(
+                'Elo K-Factor',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+              ),
               const SizedBox(height: 6),
               const Text(
                 'Controls how strongly each new result changes Elo. Changes apply to future matches only.',
               ),
               const SizedBox(height: 12),
-              Text('Current K: $currentKFactor', style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                'Current K: $currentKFactor',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: presets.map((preset) {
-                  final active = preset == currentKFactor;
-                  return ChoiceChip(
-                    selected: active,
-                    label: Text('$preset'),
-                    onSelected: (_) => onSelectKFactor(preset),
-                  );
-                }).toList(growable: false),
+                children: presets
+                    .map((preset) {
+                      final active = preset == currentKFactor;
+                      return ChoiceChip(
+                        selected: active,
+                        label: Text('$preset'),
+                        onSelected: (_) => onSelectKFactor(preset),
+                      );
+                    })
+                    .toList(growable: false),
               ),
             ],
           ),

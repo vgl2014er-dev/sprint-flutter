@@ -113,58 +113,9 @@ enum Screen {
   }
 }
 
-enum SpeakerStartupState {
-  checking,
-  connected,
-  permissionRequired,
-  permissionDenied,
-  bluetoothOff,
-  speakerNotConnected,
-  speakerNotPaired;
-
-  String toWire() {
-    switch (this) {
-      case SpeakerStartupState.checking:
-        return 'checking';
-      case SpeakerStartupState.connected:
-        return 'connected';
-      case SpeakerStartupState.permissionRequired:
-        return 'permission-required';
-      case SpeakerStartupState.permissionDenied:
-        return 'permission-denied';
-      case SpeakerStartupState.bluetoothOff:
-        return 'bluetooth-off';
-      case SpeakerStartupState.speakerNotConnected:
-        return 'speaker-not-connected';
-      case SpeakerStartupState.speakerNotPaired:
-        return 'speaker-not-paired';
-    }
-  }
-
-  static SpeakerStartupState fromWire(String? value) {
-    switch (value) {
-      case 'connected':
-        return SpeakerStartupState.connected;
-      case 'permission-required':
-        return SpeakerStartupState.permissionRequired;
-      case 'permission-denied':
-        return SpeakerStartupState.permissionDenied;
-      case 'bluetooth-off':
-        return SpeakerStartupState.bluetoothOff;
-      case 'speaker-not-connected':
-        return SpeakerStartupState.speakerNotConnected;
-      case 'speaker-not-paired':
-        return SpeakerStartupState.speakerNotPaired;
-      default:
-        return SpeakerStartupState.checking;
-    }
-  }
-}
-
 enum LeaderboardSource {
   db,
-  local,
-  direct;
+  local;
 
   String toWire() {
     switch (this) {
@@ -172,8 +123,6 @@ enum LeaderboardSource {
         return 'db';
       case LeaderboardSource.local:
         return 'local';
-      case LeaderboardSource.direct:
-        return 'direct';
     }
   }
 
@@ -181,8 +130,6 @@ enum LeaderboardSource {
     switch (value) {
       case 'local':
         return LeaderboardSource.local;
-      case 'direct':
-        return LeaderboardSource.direct;
       default:
         return LeaderboardSource.db;
     }
@@ -266,77 +213,6 @@ enum LocalSessionPhase {
         return LocalSessionPhase.error;
       default:
         return LocalSessionPhase.idle;
-    }
-  }
-}
-
-enum DirectSessionRole {
-  none,
-  host,
-  client;
-
-  String toWire() {
-    switch (this) {
-      case DirectSessionRole.none:
-        return 'none';
-      case DirectSessionRole.host:
-        return 'host';
-      case DirectSessionRole.client:
-        return 'client';
-    }
-  }
-
-  static DirectSessionRole fromWire(String? value) {
-    switch (value) {
-      case 'host':
-        return DirectSessionRole.host;
-      case 'client':
-        return DirectSessionRole.client;
-      default:
-        return DirectSessionRole.none;
-    }
-  }
-}
-
-enum DirectSessionPhase {
-  idle,
-  hosting,
-  connecting,
-  connected,
-  disconnected,
-  error;
-
-  String toWire() {
-    switch (this) {
-      case DirectSessionPhase.idle:
-        return 'idle';
-      case DirectSessionPhase.hosting:
-        return 'hosting';
-      case DirectSessionPhase.connecting:
-        return 'connecting';
-      case DirectSessionPhase.connected:
-        return 'connected';
-      case DirectSessionPhase.disconnected:
-        return 'disconnected';
-      case DirectSessionPhase.error:
-        return 'error';
-    }
-  }
-
-  static DirectSessionPhase fromWire(String? value) {
-    switch (value) {
-      case 'hosting':
-        return DirectSessionPhase.hosting;
-      case 'connecting':
-        return DirectSessionPhase.connecting;
-      case 'connected':
-        return DirectSessionPhase.connected;
-      case 'disconnected':
-        return DirectSessionPhase.disconnected;
-      case 'error':
-        return DirectSessionPhase.error;
-      default:
-        return DirectSessionPhase.idle;
     }
   }
 }
@@ -478,7 +354,10 @@ class MatchHistoryEntry {
       p1EloAfter: _toInt(json['p1EloAfter'], 1200),
       p2EloAfter: _toInt(json['p2EloAfter'], 1200),
       result: MatchResult.fromWire(json['result']?.toString()),
-      timestamp: _toInt(json['timestamp'], DateTime.now().millisecondsSinceEpoch),
+      timestamp: _toInt(
+        json['timestamp'],
+        DateTime.now().millisecondsSinceEpoch,
+      ),
     );
   }
 
@@ -584,8 +463,14 @@ class UiRoundMatch {
   factory UiRoundMatch.fromJson(Map<String, Object?> json) {
     return UiRoundMatch(
       id: (json['id'] ?? '').toString(),
-      player1: Player.fromJson((json['player1'] as Map?)?.cast<String, Object?>() ?? const <String, Object?>{}),
-      player2: Player.fromJson((json['player2'] as Map?)?.cast<String, Object?>() ?? const <String, Object?>{}),
+      player1: Player.fromJson(
+        (json['player1'] as Map?)?.cast<String, Object?>() ??
+            const <String, Object?>{},
+      ),
+      player2: Player.fromJson(
+        (json['player2'] as Map?)?.cast<String, Object?>() ??
+            const <String, Object?>{},
+      ),
       winnerId: json['winnerId']?.toString(),
       isDraw: json['isDraw'] == true,
       played: json['played'] == true,
@@ -613,10 +498,7 @@ class UiRoundMatch {
 }
 
 class SyncState {
-  const SyncState({
-    this.isSyncing = false,
-    this.lastSyncedEpochMillis,
-  });
+  const SyncState({this.isSyncing = false, this.lastSyncedEpochMillis});
 
   final bool isSyncing;
   final int? lastSyncedEpochMillis;
@@ -647,10 +529,7 @@ class SyncState {
 }
 
 class DiscoveredHost {
-  const DiscoveredHost({
-    required this.endpointId,
-    required this.displayName,
-  });
+  const DiscoveredHost({required this.endpointId, required this.displayName});
 
   final String endpointId;
   final String displayName;
@@ -738,7 +617,9 @@ class LocalSessionState {
       lastLocalUpdateEpochMillis: clearLastLocalUpdateEpochMillis
           ? null
           : (lastLocalUpdateEpochMillis ?? this.lastLocalUpdateEpochMillis),
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 
@@ -746,7 +627,9 @@ class LocalSessionState {
     return <String, Object?>{
       'role': role.toWire(),
       'phase': phase.toWire(),
-      'discoveredHosts': discoveredHosts.map((host) => host.toJson()).toList(growable: false),
+      'discoveredHosts': discoveredHosts
+          .map((host) => host.toJson())
+          .toList(growable: false),
       'pendingConnectionName': pendingConnectionName,
       'connectedHostName': connectedHostName,
       'localEndpointName': localEndpointName,
@@ -762,13 +645,18 @@ class LocalSessionState {
       role: LocalSessionRole.fromWire(json['role']?.toString()),
       phase: LocalSessionPhase.fromWire(json['phase']?.toString()),
       discoveredHosts: discoveredHostsRaw
-          .map((item) => DiscoveredHost.fromJson((item as Map).cast<String, Object?>()))
+          .map(
+            (item) =>
+                DiscoveredHost.fromJson((item as Map).cast<String, Object?>()),
+          )
           .toList(growable: false),
       pendingConnectionName: json['pendingConnectionName']?.toString(),
       connectedHostName: json['connectedHostName']?.toString(),
       localEndpointName: json['localEndpointName']?.toString(),
       authToken: json['authToken']?.toString(),
-      lastLocalUpdateEpochMillis: _toNullableInt(json['lastLocalUpdateEpochMillis']),
+      lastLocalUpdateEpochMillis: _toNullableInt(
+        json['lastLocalUpdateEpochMillis'],
+      ),
       errorMessage: json['errorMessage']?.toString(),
     );
   }
@@ -805,98 +693,6 @@ class LocalSessionState {
   }
 }
 
-class DirectSessionState {
-  const DirectSessionState({
-    this.role = DirectSessionRole.none,
-    this.phase = DirectSessionPhase.idle,
-    this.localEndpointName,
-    this.connectedHostAddress,
-    this.lastDirectUpdateEpochMillis,
-    this.errorMessage,
-  });
-
-  final DirectSessionRole role;
-  final DirectSessionPhase phase;
-  final String? localEndpointName;
-  final String? connectedHostAddress;
-  final int? lastDirectUpdateEpochMillis;
-  final String? errorMessage;
-
-  DirectSessionState copyWith({
-    DirectSessionRole? role,
-    DirectSessionPhase? phase,
-    String? localEndpointName,
-    bool clearLocalEndpointName = false,
-    String? connectedHostAddress,
-    bool clearConnectedHostAddress = false,
-    int? lastDirectUpdateEpochMillis,
-    bool clearLastDirectUpdateEpochMillis = false,
-    String? errorMessage,
-    bool clearErrorMessage = false,
-  }) {
-    return DirectSessionState(
-      role: role ?? this.role,
-      phase: phase ?? this.phase,
-      localEndpointName: clearLocalEndpointName
-          ? null
-          : (localEndpointName ?? this.localEndpointName),
-      connectedHostAddress: clearConnectedHostAddress
-          ? null
-          : (connectedHostAddress ?? this.connectedHostAddress),
-      lastDirectUpdateEpochMillis: clearLastDirectUpdateEpochMillis
-          ? null
-          : (lastDirectUpdateEpochMillis ?? this.lastDirectUpdateEpochMillis),
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'role': role.toWire(),
-      'phase': phase.toWire(),
-      'localEndpointName': localEndpointName,
-      'connectedHostAddress': connectedHostAddress,
-      'lastDirectUpdateEpochMillis': lastDirectUpdateEpochMillis,
-      'errorMessage': errorMessage,
-    };
-  }
-
-  factory DirectSessionState.fromJson(Map<String, Object?> json) {
-    return DirectSessionState(
-      role: DirectSessionRole.fromWire(json['role']?.toString()),
-      phase: DirectSessionPhase.fromWire(json['phase']?.toString()),
-      localEndpointName: json['localEndpointName']?.toString(),
-      connectedHostAddress: json['connectedHostAddress']?.toString(),
-      lastDirectUpdateEpochMillis: _toNullableInt(json['lastDirectUpdateEpochMillis']),
-      errorMessage: json['errorMessage']?.toString(),
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is DirectSessionState &&
-            role == other.role &&
-            phase == other.phase &&
-            localEndpointName == other.localEndpointName &&
-            connectedHostAddress == other.connectedHostAddress &&
-            lastDirectUpdateEpochMillis == other.lastDirectUpdateEpochMillis &&
-            errorMessage == other.errorMessage;
-  }
-
-  @override
-  int get hashCode {
-    return Object.hash(
-      role,
-      phase,
-      localEndpointName,
-      connectedHostAddress,
-      lastDirectUpdateEpochMillis,
-      errorMessage,
-    );
-  }
-}
-
 class LocalLeaderboardSnapshot {
   const LocalLeaderboardSnapshot({
     required this.hostDisplayName,
@@ -918,7 +714,9 @@ class LocalLeaderboardSnapshot {
       'generatedAtEpochMillis': generatedAtEpochMillis,
       'kFactor': kFactor,
       'lastSyncedEpochMillis': lastSyncedEpochMillis,
-      'players': players.map((player) => player.toJson()).toList(growable: false),
+      'players': players
+          .map((player) => player.toJson())
+          .toList(growable: false),
     };
   }
 
@@ -985,11 +783,8 @@ class AppState {
     required this.currentMatchIndex,
     required this.selectedPlayerId,
     required this.profileBackScreen,
-    required this.speakerStartupState,
-    required this.shouldShowSpeakerPrompt,
     required this.leaderboardSource,
     required this.localSessionState,
-    required this.directSessionState,
     required this.deathMatchInProgress,
     required this.deathMatchParticipantIds,
     required this.deathMatchPairingStrategy,
@@ -1008,11 +803,8 @@ class AppState {
   final int currentMatchIndex;
   final String? selectedPlayerId;
   final Screen profileBackScreen;
-  final SpeakerStartupState speakerStartupState;
-  final bool shouldShowSpeakerPrompt;
   final LeaderboardSource leaderboardSource;
   final LocalSessionState localSessionState;
-  final DirectSessionState directSessionState;
   final bool deathMatchInProgress;
   final List<String> deathMatchParticipantIds;
   final PairingStrategy? deathMatchPairingStrategy;
@@ -1026,12 +818,7 @@ class AppState {
         localSessionState.role == LocalSessionRole.client;
   }
 
-  bool get isDirectClientMode {
-    return leaderboardSource == LeaderboardSource.direct &&
-        directSessionState.role == DirectSessionRole.client;
-  }
-
-  bool get isReadOnlyClientMode => isLocalClientMode || isDirectClientMode;
+  bool get isReadOnlyClientMode => isLocalClientMode;
 
   AppState copyWith({
     List<Player>? players,
@@ -1044,11 +831,8 @@ class AppState {
     String? selectedPlayerId,
     bool clearSelectedPlayerId = false,
     Screen? profileBackScreen,
-    SpeakerStartupState? speakerStartupState,
-    bool? shouldShowSpeakerPrompt,
     LeaderboardSource? leaderboardSource,
     LocalSessionState? localSessionState,
-    DirectSessionState? directSessionState,
     bool? deathMatchInProgress,
     List<String>? deathMatchParticipantIds,
     PairingStrategy? deathMatchPairingStrategy,
@@ -1068,22 +852,23 @@ class AppState {
       screen: screen ?? this.screen,
       roundMatches: roundMatches ?? this.roundMatches,
       currentMatchIndex: currentMatchIndex ?? this.currentMatchIndex,
-      selectedPlayerId: clearSelectedPlayerId ? null : (selectedPlayerId ?? this.selectedPlayerId),
+      selectedPlayerId: clearSelectedPlayerId
+          ? null
+          : (selectedPlayerId ?? this.selectedPlayerId),
       profileBackScreen: profileBackScreen ?? this.profileBackScreen,
-      speakerStartupState: speakerStartupState ?? this.speakerStartupState,
-      shouldShowSpeakerPrompt: shouldShowSpeakerPrompt ?? this.shouldShowSpeakerPrompt,
       leaderboardSource: leaderboardSource ?? this.leaderboardSource,
       localSessionState: localSessionState ?? this.localSessionState,
-      directSessionState: directSessionState ?? this.directSessionState,
       deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
-      deathMatchParticipantIds: deathMatchParticipantIds ?? this.deathMatchParticipantIds,
+      deathMatchParticipantIds:
+          deathMatchParticipantIds ?? this.deathMatchParticipantIds,
       deathMatchPairingStrategy: clearDeathMatchPairingStrategy
           ? null
           : (deathMatchPairingStrategy ?? this.deathMatchPairingStrategy),
       deathMatchLossesByPlayerId:
           deathMatchLossesByPlayerId ?? this.deathMatchLossesByPlayerId,
       deathMatchMatchesPlayedByPlayerId:
-          deathMatchMatchesPlayedByPlayerId ?? this.deathMatchMatchesPlayedByPlayerId,
+          deathMatchMatchesPlayedByPlayerId ??
+          this.deathMatchMatchesPlayedByPlayerId,
       deathMatchByePlayerId: clearDeathMatchByePlayerId
           ? null
           : (deathMatchByePlayerId ?? this.deathMatchByePlayerId),
@@ -1104,11 +889,8 @@ class AppState {
       currentMatchIndex: 0,
       selectedPlayerId: null,
       profileBackScreen: Screen.leaderboard,
-      speakerStartupState: SpeakerStartupState.checking,
-      shouldShowSpeakerPrompt: false,
       leaderboardSource: LeaderboardSource.db,
       localSessionState: LocalSessionState(),
-      directSessionState: DirectSessionState(),
       deathMatchInProgress: false,
       deathMatchParticipantIds: <String>[],
       deathMatchPairingStrategy: null,
@@ -1127,22 +909,26 @@ class AppState {
             eq.equals(players, other.players) &&
             eq.equals(history, other.history) &&
             syncState.isSyncing == other.syncState.isSyncing &&
-            syncState.lastSyncedEpochMillis == other.syncState.lastSyncedEpochMillis &&
+            syncState.lastSyncedEpochMillis ==
+                other.syncState.lastSyncedEpochMillis &&
             kFactor == other.kFactor &&
             screen == other.screen &&
             eq.equals(roundMatches, other.roundMatches) &&
             currentMatchIndex == other.currentMatchIndex &&
             selectedPlayerId == other.selectedPlayerId &&
             profileBackScreen == other.profileBackScreen &&
-            speakerStartupState == other.speakerStartupState &&
-            shouldShowSpeakerPrompt == other.shouldShowSpeakerPrompt &&
             leaderboardSource == other.leaderboardSource &&
             localSessionState == other.localSessionState &&
-            directSessionState == other.directSessionState &&
             deathMatchInProgress == other.deathMatchInProgress &&
-            eq.equals(deathMatchParticipantIds, other.deathMatchParticipantIds) &&
+            eq.equals(
+              deathMatchParticipantIds,
+              other.deathMatchParticipantIds,
+            ) &&
             deathMatchPairingStrategy == other.deathMatchPairingStrategy &&
-            eq.equals(deathMatchLossesByPlayerId, other.deathMatchLossesByPlayerId) &&
+            eq.equals(
+              deathMatchLossesByPlayerId,
+              other.deathMatchLossesByPlayerId,
+            ) &&
             eq.equals(
               deathMatchMatchesPlayedByPlayerId,
               other.deathMatchMatchesPlayedByPlayerId,
@@ -1153,29 +939,26 @@ class AppState {
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        const DeepCollectionEquality().hash(players),
-        const DeepCollectionEquality().hash(history),
-        syncState.isSyncing,
-        syncState.lastSyncedEpochMillis,
-        kFactor,
-        screen,
-        const DeepCollectionEquality().hash(roundMatches),
-        currentMatchIndex,
-        selectedPlayerId,
-        profileBackScreen,
-        speakerStartupState,
-        shouldShowSpeakerPrompt,
-        leaderboardSource,
-        localSessionState,
-        directSessionState,
-        deathMatchInProgress,
-        const DeepCollectionEquality().hash(deathMatchParticipantIds),
-        deathMatchPairingStrategy,
-        const DeepCollectionEquality().hash(deathMatchLossesByPlayerId),
-        const DeepCollectionEquality().hash(deathMatchMatchesPlayedByPlayerId),
-        deathMatchByePlayerId,
-        deathMatchChampionId,
-      ]);
+    const DeepCollectionEquality().hash(players),
+    const DeepCollectionEquality().hash(history),
+    syncState.isSyncing,
+    syncState.lastSyncedEpochMillis,
+    kFactor,
+    screen,
+    const DeepCollectionEquality().hash(roundMatches),
+    currentMatchIndex,
+    selectedPlayerId,
+    profileBackScreen,
+    leaderboardSource,
+    localSessionState,
+    deathMatchInProgress,
+    const DeepCollectionEquality().hash(deathMatchParticipantIds),
+    deathMatchPairingStrategy,
+    const DeepCollectionEquality().hash(deathMatchLossesByPlayerId),
+    const DeepCollectionEquality().hash(deathMatchMatchesPlayedByPlayerId),
+    deathMatchByePlayerId,
+    deathMatchChampionId,
+  ]);
 }
 
 int _toInt(Object? value, int defaultValue) {

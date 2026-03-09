@@ -62,19 +62,10 @@ class SprintController extends StateNotifier<AppState> {
         _localSnapshot = value;
         _refreshProjectedData();
       }),
-      _platformChannels.directSessionState.listen(_onDirectSessionState),
-      _platformChannels.directSnapshot.listen((value) {
-        _directSnapshot = value;
-        _refreshProjectedData();
-      }),
-      _platformChannels.speakerStartupState.listen((value) {
-        _setSpeakerState(value);
-      }),
       _platformChannels.errors.listen((_) {}),
     ]);
 
     unawaited(_platformChannels.setImmersiveMode());
-    unawaited(_platformChannels.refreshSpeakerStartupState());
   }
 
   final SprintRepository _repository;
@@ -89,10 +80,7 @@ class SprintController extends StateNotifier<AppState> {
   int _dbKFactor = Defaults.eloK;
 
   LocalLeaderboardSnapshot? _localSnapshot;
-  LocalLeaderboardSnapshot? _directSnapshot;
-
   PairingStrategy _currentPairingStrategy = PairingStrategy.random;
-  bool _isSpeakerPromptDismissed = false;
   final Set<String> _deathMatchParticipantIds = <String>{};
   final Map<String, int> _deathMatchByeCountsByPlayerId = <String, int>{};
   String? _deathMatchPreviousByePlayerId;
@@ -317,14 +305,11 @@ class SprintController extends StateNotifier<AppState> {
   void startLocalHosting(String localEndpointName) {
     state = state.copyWith(leaderboardSource: LeaderboardSource.db);
     unawaited(_platformChannels.useDatabaseModeForLocal());
-    unawaited(_platformChannels.useDatabaseModeForDirect());
     unawaited(_platformChannels.startLocalHosting(localEndpointName));
-    unawaited(_platformChannels.startDirectHosting(localEndpointName));
   }
 
   void stopLocalHosting() {
     unawaited(_platformChannels.stopLocalHosting());
-    unawaited(_platformChannels.stopDirectHosting());
   }
 
   void scanLocalHosts(String localEndpointName) {
@@ -348,45 +333,10 @@ class SprintController extends StateNotifier<AppState> {
     unawaited(_platformChannels.disconnectLocalConnection());
   }
 
-  void connectDirectTransport(String localEndpointName) {
-    state = state.copyWith(screen: Screen.leaderboard);
-    unawaited(_platformChannels.connectDirectTransport(localEndpointName));
-  }
-
-  void disconnectDirectConnection() {
-    unawaited(_platformChannels.disconnectDirectTransport());
-  }
-
   void useDatabaseLeaderboard() {
     state = state.copyWith(leaderboardSource: LeaderboardSource.db);
     unawaited(_platformChannels.useDatabaseModeForLocal());
-    unawaited(_platformChannels.useDatabaseModeForDirect());
     _refreshProjectedData();
-  }
-
-  void refreshSpeakerStartupState() {
-    unawaited(_platformChannels.refreshSpeakerStartupState());
-  }
-
-  void setSpeakerPermissionRequired() {
-    _setSpeakerState(SpeakerStartupState.permissionRequired);
-  }
-
-  void setSpeakerPermissionDenied() {
-    _setSpeakerState(SpeakerStartupState.permissionDenied);
-  }
-
-  void dismissSpeakerPromptForThisLaunch() {
-    _isSpeakerPromptDismissed = true;
-    state = state.copyWith(shouldShowSpeakerPrompt: false);
-  }
-
-  void openBluetoothSettings() {
-    unawaited(_platformChannels.openBluetoothSettings());
-  }
-
-  void openAppSettings() {
-    unawaited(_platformChannels.openAppSettings());
   }
 
   bool _generateMatchesForRound({
@@ -612,33 +562,6 @@ class SprintController extends StateNotifier<AppState> {
     );
   }
 
-  void _setSpeakerState(SpeakerStartupState stateValue) {
-    if (stateValue == SpeakerStartupState.connected) {
-      _isSpeakerPromptDismissed = false;
-    }
-
-    state = state.copyWith(
-      speakerStartupState: stateValue,
-      shouldShowSpeakerPrompt: _shouldShowSpeakerPrompt(
-        stateValue,
-        _isSpeakerPromptDismissed,
-      ),
-    );
-  }
-
-  bool _shouldShowSpeakerPrompt(
-    SpeakerStartupState stateValue,
-    bool dismissed,
-  ) {
-    switch (stateValue) {
-      case SpeakerStartupState.checking:
-      case SpeakerStartupState.connected:
-        return false;
-      default:
-        return !dismissed;
-    }
-  }
-
   void _onLocalSessionState(LocalSessionState sessionState) {
     var nextState = state.copyWith(localSessionState: sessionState);
 
@@ -661,36 +584,12 @@ class SprintController extends StateNotifier<AppState> {
     _refreshProjectedData();
   }
 
-  void _onDirectSessionState(DirectSessionState sessionState) {
-    var nextState = state.copyWith(directSessionState: sessionState);
-
-    if (sessionState.role == DirectSessionRole.client &&
-        _directClientLockedPhases.contains(sessionState.phase)) {
-      nextState = nextState.copyWith(
-        screen: Screen.leaderboard,
-        clearSelectedPlayerId: true,
-      );
-    }
-
-    if (sessionState.role == DirectSessionRole.client &&
-        sessionState.phase == DirectSessionPhase.connected) {
-      nextState = nextState.copyWith(
-        leaderboardSource: LeaderboardSource.direct,
-      );
-    }
-
-    state = nextState;
-    _refreshProjectedData();
-  }
-
   void _refreshProjectedData() {
     final source = state.leaderboardSource;
 
     final projectedPlayers = switch (source) {
       LeaderboardSource.local when _localSnapshot != null =>
         _localSnapshot!.players,
-      LeaderboardSource.direct when _directSnapshot != null =>
-        _directSnapshot!.players,
       _ => _dbPlayers,
     };
 
@@ -698,17 +597,12 @@ class SprintController extends StateNotifier<AppState> {
       LeaderboardSource.local when _localSnapshot != null => SyncState(
         lastSyncedEpochMillis: _localSnapshot!.lastSyncedEpochMillis,
       ),
-      LeaderboardSource.direct when _directSnapshot != null => SyncState(
-        lastSyncedEpochMillis: _directSnapshot!.lastSyncedEpochMillis,
-      ),
       _ => _dbSyncState,
     };
 
     final projectedKFactor = switch (source) {
       LeaderboardSource.local when _localSnapshot != null =>
         _localSnapshot!.kFactor,
-      LeaderboardSource.direct when _directSnapshot != null =>
-        _directSnapshot!.kFactor,
       _ => _dbKFactor,
     };
 
@@ -735,31 +629,11 @@ class SprintController extends StateNotifier<AppState> {
       );
       unawaited(_platformChannels.publishLocalHostedSnapshot(snapshot));
     }
-
-    final directSession = state.directSessionState;
-    if (directSession.role == DirectSessionRole.host) {
-      final snapshot = LocalLeaderboardSnapshot(
-        hostDisplayName:
-            directSession.localEndpointName ?? _defaultLocalEndpointName,
-        generatedAtEpochMillis: DateTime.now().millisecondsSinceEpoch,
-        kFactor: _dbKFactor,
-        lastSyncedEpochMillis: _dbSyncState.lastSyncedEpochMillis,
-        players: _dbPlayers,
-      );
-      unawaited(_platformChannels.publishDirectHostedSnapshot(snapshot));
-    }
   }
 
   bool _isClientLockedToLeaderboard() {
-    final localClientLocked =
-        state.leaderboardSource == LeaderboardSource.local &&
+    return state.leaderboardSource == LeaderboardSource.local &&
         state.localSessionState.role == LocalSessionRole.client;
-
-    final directClientLocked =
-        state.leaderboardSource == LeaderboardSource.direct &&
-        state.directSessionState.role == DirectSessionRole.client;
-
-    return localClientLocked || directClientLocked;
   }
 
   @override
@@ -779,13 +653,6 @@ class SprintController extends StateNotifier<AppState> {
     LocalSessionPhase.connected,
     LocalSessionPhase.disconnected,
   };
-
-  static const Set<DirectSessionPhase> _directClientLockedPhases =
-      <DirectSessionPhase>{
-        DirectSessionPhase.connecting,
-        DirectSessionPhase.connected,
-        DirectSessionPhase.disconnected,
-      };
 }
 
 List<UiRoundMatch> reorderRoundMatchesToAvoidFirstMatchPlayers(

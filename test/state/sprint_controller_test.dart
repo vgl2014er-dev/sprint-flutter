@@ -113,10 +113,17 @@ void main() {
         await flushState();
         expect(controller.state.leaderboardSource, LeaderboardSource.db);
         expect(controller.state.players.first.id, 'a');
-        expect(platform.useDbForLocalCalls, greaterThanOrEqualTo(1));
-        expect(platform.useDbForDirectCalls, greaterThanOrEqualTo(1));
+        expect(platform.useDbForLocalCalls, 1);
       },
     );
+
+    test('starts local hosting using local-only platform flow', () async {
+      controller.startLocalHosting('Sprint Device');
+      await flushState();
+
+      expect(platform.useDbForLocalCalls, 1);
+      expect(platform.startLocalHostingCalls, 1);
+    });
 
     test('resolves death match champion after elimination threshold', () async {
       final started = controller.startDeathMatch(const <String>{
@@ -210,17 +217,11 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
       StreamController<LocalSessionState>.broadcast();
   final StreamController<LocalLeaderboardSnapshot> _localSnapshotController =
       StreamController<LocalLeaderboardSnapshot>.broadcast();
-  final StreamController<DirectSessionState> _directSessionController =
-      StreamController<DirectSessionState>.broadcast();
-  final StreamController<LocalLeaderboardSnapshot> _directSnapshotController =
-      StreamController<LocalLeaderboardSnapshot>.broadcast();
-  final StreamController<SpeakerStartupState> _speakerController =
-      StreamController<SpeakerStartupState>.broadcast();
   final StreamController<String> _errorsController =
       StreamController<String>.broadcast();
 
   int useDbForLocalCalls = 0;
-  int useDbForDirectCalls = 0;
+  int startLocalHostingCalls = 0;
 
   @override
   Stream<LocalSessionState> get localSessionState =>
@@ -229,18 +230,6 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   @override
   Stream<LocalLeaderboardSnapshot> get localSnapshot =>
       _localSnapshotController.stream;
-
-  @override
-  Stream<DirectSessionState> get directSessionState =>
-      _directSessionController.stream;
-
-  @override
-  Stream<LocalLeaderboardSnapshot> get directSnapshot =>
-      _directSnapshotController.stream;
-
-  @override
-  Stream<SpeakerStartupState> get speakerStartupState =>
-      _speakerController.stream;
 
   @override
   Stream<String> get errors => _errorsController.stream;
@@ -252,7 +241,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
       _localSnapshotController.add(snapshot);
 
   @override
-  Future<void> startLocalHosting(String localEndpointName) async {}
+  Future<void> startLocalHosting(String localEndpointName) async {
+    startLocalHostingCalls += 1;
+  }
 
   @override
   Future<void> stopLocalHosting() async {}
@@ -278,43 +269,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   }
 
   @override
-  Future<void> connectDirectTransport(String localEndpointName) async {}
-
-  @override
-  Future<void> startDirectHosting(String localEndpointName) async {}
-
-  @override
-  Future<void> stopDirectHosting() async {}
-
-  @override
-  Future<void> disconnectDirectTransport() async {}
-
-  @override
-  Future<void> useDatabaseModeForDirect() async {
-    useDbForDirectCalls += 1;
-  }
-
-  @override
   Future<void> publishLocalHostedSnapshot(
     LocalLeaderboardSnapshot snapshot,
   ) async {}
-
-  @override
-  Future<void> publishDirectHostedSnapshot(
-    LocalLeaderboardSnapshot snapshot,
-  ) async {}
-
-  @override
-  Future<void> refreshSpeakerStartupState() async {}
-
-  @override
-  Future<void> requestSpeakerPermission() async {}
-
-  @override
-  Future<void> openBluetoothSettings() async {}
-
-  @override
-  Future<void> openAppSettings() async {}
 
   @override
   Future<void> setImmersiveMode() async {}
@@ -323,9 +280,6 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   void dispose() {
     _localSessionController.close();
     _localSnapshotController.close();
-    _directSessionController.close();
-    _directSnapshotController.close();
-    _speakerController.close();
     _errorsController.close();
   }
 }

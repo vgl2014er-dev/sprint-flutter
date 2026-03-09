@@ -9,12 +9,6 @@ abstract class SprintPlatformAdapter {
 
   Stream<LocalLeaderboardSnapshot> get localSnapshot;
 
-  Stream<DirectSessionState> get directSessionState;
-
-  Stream<LocalLeaderboardSnapshot> get directSnapshot;
-
-  Stream<SpeakerStartupState> get speakerStartupState;
-
   Stream<String> get errors;
 
   Future<void> startLocalHosting(String localEndpointName);
@@ -33,27 +27,7 @@ abstract class SprintPlatformAdapter {
 
   Future<void> useDatabaseModeForLocal();
 
-  Future<void> connectDirectTransport(String localEndpointName);
-
-  Future<void> startDirectHosting(String localEndpointName);
-
-  Future<void> stopDirectHosting();
-
-  Future<void> disconnectDirectTransport();
-
-  Future<void> useDatabaseModeForDirect();
-
   Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot);
-
-  Future<void> publishDirectHostedSnapshot(LocalLeaderboardSnapshot snapshot);
-
-  Future<void> refreshSpeakerStartupState();
-
-  Future<void> requestSpeakerPermission();
-
-  Future<void> openBluetoothSettings();
-
-  Future<void> openAppSettings();
 
   Future<void> setImmersiveMode();
 
@@ -73,12 +47,6 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       StreamController<LocalSessionState>.broadcast();
   final StreamController<LocalLeaderboardSnapshot> _localSnapshotController =
       StreamController<LocalLeaderboardSnapshot>.broadcast();
-  final StreamController<DirectSessionState> _directSessionStateController =
-      StreamController<DirectSessionState>.broadcast();
-  final StreamController<LocalLeaderboardSnapshot> _directSnapshotController =
-      StreamController<LocalLeaderboardSnapshot>.broadcast();
-  final StreamController<SpeakerStartupState> _speakerStartupStateController =
-      StreamController<SpeakerStartupState>.broadcast();
   final StreamController<String> _errorsController =
       StreamController<String>.broadcast();
 
@@ -89,18 +57,6 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
   @override
   Stream<LocalLeaderboardSnapshot> get localSnapshot =>
       _localSnapshotController.stream;
-
-  @override
-  Stream<DirectSessionState> get directSessionState =>
-      _directSessionStateController.stream;
-
-  @override
-  Stream<LocalLeaderboardSnapshot> get directSnapshot =>
-      _directSnapshotController.stream;
-
-  @override
-  Stream<SpeakerStartupState> get speakerStartupState =>
-      _speakerStartupStateController.stream;
 
   @override
   Stream<String> get errors => _errorsController.stream;
@@ -155,69 +111,11 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
   }
 
   @override
-  Future<void> connectDirectTransport(String localEndpointName) {
-    return _methodChannel.invokeMethod<void>('directConnect', <String, Object?>{
-      'localEndpointName': localEndpointName,
-    });
-  }
-
-  @override
-  Future<void> startDirectHosting(String localEndpointName) {
-    return _methodChannel.invokeMethod<void>(
-      'directStartHost',
-      <String, Object?>{'localEndpointName': localEndpointName},
-    );
-  }
-
-  @override
-  Future<void> stopDirectHosting() {
-    return _methodChannel.invokeMethod<void>('directStopHost');
-  }
-
-  @override
-  Future<void> disconnectDirectTransport() {
-    return _methodChannel.invokeMethod<void>('directDisconnect');
-  }
-
-  @override
-  Future<void> useDatabaseModeForDirect() {
-    return _methodChannel.invokeMethod<void>('directUseDb');
-  }
-
-  @override
   Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot) {
     return _methodChannel.invokeMethod<void>(
       'publishLocalSnapshot',
       <String, Object?>{'snapshot': snapshot.toJson()},
     );
-  }
-
-  @override
-  Future<void> publishDirectHostedSnapshot(LocalLeaderboardSnapshot snapshot) {
-    return _methodChannel.invokeMethod<void>(
-      'publishDirectSnapshot',
-      <String, Object?>{'snapshot': snapshot.toJson()},
-    );
-  }
-
-  @override
-  Future<void> refreshSpeakerStartupState() {
-    return _methodChannel.invokeMethod<void>('speakerRefresh');
-  }
-
-  @override
-  Future<void> requestSpeakerPermission() {
-    return _methodChannel.invokeMethod<void>('speakerRequestPermission');
-  }
-
-  @override
-  Future<void> openBluetoothSettings() {
-    return _methodChannel.invokeMethod<void>('speakerOpenBluetooth');
-  }
-
-  @override
-  Future<void> openAppSettings() {
-    return _methodChannel.invokeMethod<void>('speakerOpenAppSettings');
   }
 
   @override
@@ -247,17 +145,6 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       case 'local_snapshot':
         _localSnapshotController.add(LocalLeaderboardSnapshot.fromJson(data));
         break;
-      case 'direct_session_state':
-        _directSessionStateController.add(DirectSessionState.fromJson(data));
-        break;
-      case 'direct_snapshot':
-        _directSnapshotController.add(LocalLeaderboardSnapshot.fromJson(data));
-        break;
-      case 'speaker_state':
-        _speakerStartupStateController.add(
-          SpeakerStartupState.fromWire(data['state']?.toString()),
-        );
-        break;
       case 'error':
         final message = data['message']?.toString() ?? 'platform_error';
         _errorsController.add(message);
@@ -272,9 +159,6 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
     _methodChannel.setMethodCallHandler(null);
     _localSessionStateController.close();
     _localSnapshotController.close();
-    _directSessionStateController.close();
-    _directSnapshotController.close();
-    _speakerStartupStateController.close();
     _errorsController.close();
   }
 }
