@@ -1,10 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../../domain/head_to_head_calculator.dart';
 import '../../models/app_models.dart';
 import '../../state/sprint_controller.dart';
+
+final AudioPlayer _startBeepPlayer = AudioPlayer()
+  ..setReleaseMode(ReleaseMode.stop);
+
+Future<void> _playStartBeep() async {
+  try {
+    await _startBeepPlayer.stop();
+    await _startBeepPlayer.play(AssetSource('audio/start_beep.mp3'));
+  } catch (_) {
+    // Ignore playback failures so match flow is never blocked by audio.
+  }
+}
 
 class SprintApp extends ConsumerWidget {
   const SprintApp({super.key});
@@ -31,7 +45,6 @@ class SprintApp extends ConsumerWidget {
     final body = switch (state.screen) {
       Screen.landing => LandingScreen(
         localSessionState: state.localSessionState,
-        onOpenPlayers: () => controller.navigateTo(Screen.playerList),
         onOpenRandom: () => controller.navigateTo(Screen.randomPlayerSelection),
         onOpenElo: () => controller.navigateTo(Screen.eloPlayerSelection),
         onOpenDeathMatch: () =>
@@ -428,7 +441,6 @@ class AppFooter extends StatelessWidget {
 class LandingScreen extends StatelessWidget {
   const LandingScreen({
     required this.localSessionState,
-    required this.onOpenPlayers,
     required this.onOpenRandom,
     required this.onOpenElo,
     required this.onOpenDeathMatch,
@@ -439,7 +451,6 @@ class LandingScreen extends StatelessWidget {
   });
 
   final LocalSessionState localSessionState;
-  final VoidCallback onOpenPlayers;
   final VoidCallback onOpenRandom;
   final VoidCallback onOpenElo;
   final VoidCallback onOpenDeathMatch;
@@ -454,26 +465,10 @@ class LandingScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            IconButton(
-              onPressed: onOpenPlayers,
-              icon: const Icon(Icons.people_rounded),
-            ),
-            const Expanded(
-              child: Text(
-                'Sprint Duels',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            IconButton(
-              onPressed: () => SystemChrome.setEnabledSystemUIMode(
-                SystemUiMode.immersiveSticky,
-              ),
-              icon: const Icon(Icons.fullscreen_rounded),
-            ),
-          ],
+        const Text(
+          'Sprint Duels',
+          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
         const Text(
@@ -1041,7 +1036,7 @@ class MatchRunnerScreen extends StatelessWidget {
                     deathMatchMatchesPlayedByPlayerId:
                         state.deathMatchMatchesPlayedByPlayerId,
                     onStart: () {
-                      SystemSound.play(SystemSoundType.click);
+                      unawaited(_playStartBeep());
                       onStart(currentMatch.id);
                     },
                     onP1: () => onResult(currentMatch.id, MatchResult.p1),
@@ -1268,7 +1263,10 @@ class LeaderboardScreen extends StatelessWidget {
                 subtitle: Text('Win rate: $winRate%'),
                 trailing: Text(
                   '${player.elo}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
                 ),
               );
             },
