@@ -31,6 +31,7 @@ void main() {
       repository.emitHistory(const <MatchHistoryEntry>[]);
       repository.emitSync(const SyncState(lastSyncedEpochMillis: 1));
       repository.emitKFactor(32);
+      repository.emitThemePreference(AppThemePreference.light);
       await flushState();
     });
 
@@ -160,6 +161,7 @@ void main() {
       'handles repository write failures without uncaught async errors',
       () async {
         repository.setKFactorError = StateError('set_k_failed');
+        repository.setThemePreferenceError = StateError('set_theme_failed');
         repository.deleteMatchError = StateError('delete_failed');
         repository.submitRoundResultsError = StateError('submit_failed');
 
@@ -171,16 +173,33 @@ void main() {
         expect(started, isTrue);
 
         controller.setKFactor(48);
+        controller.toggleThemePreference();
         controller.deleteMatch('match-1');
         final match = controller.state.roundMatches.single;
         controller.recordResult(match.id, MatchResult.p1);
         await flushState();
 
         expect(repository.setKFactorCalls, 1);
+        expect(repository.setThemePreferenceCalls, 1);
         expect(repository.deleteMatchCalls, 1);
         expect(repository.submitRoundResultsCalls, 1);
       },
     );
+
+    test('applies theme preference stream updates and toggles theme', () async {
+      expect(controller.state.themePreference, AppThemePreference.light);
+
+      repository.emitThemePreference(AppThemePreference.dark);
+      await flushState();
+
+      expect(controller.state.themePreference, AppThemePreference.dark);
+
+      controller.toggleThemePreference();
+      await flushState();
+
+      expect(repository.setThemePreferenceCalls, 1);
+      expect(repository.lastSetThemePreference, AppThemePreference.light);
+    });
 
     test(
       'handles platform command failures without uncaught async errors',
@@ -409,16 +428,21 @@ class FakeSprintRepository implements SprintRepository {
       StreamController<SyncState>.broadcast();
   final StreamController<int> _kFactorController =
       StreamController<int>.broadcast();
+  final StreamController<AppThemePreference> _themePreferenceController =
+      StreamController<AppThemePreference>.broadcast();
 
   final List<List<RoundResultInput>> submittedResults =
       <List<RoundResultInput>>[];
   int submitRoundResultsCalls = 0;
   int deleteMatchCalls = 0;
   int setKFactorCalls = 0;
+  int setThemePreferenceCalls = 0;
 
   Object? submitRoundResultsError;
   Object? deleteMatchError;
   Object? setKFactorError;
+  Object? setThemePreferenceError;
+  AppThemePreference? lastSetThemePreference;
 
   @override
   Stream<List<Player>> get players => _playersController.stream;
@@ -432,6 +456,10 @@ class FakeSprintRepository implements SprintRepository {
   @override
   Stream<int> get kFactor => _kFactorController.stream;
 
+  @override
+  Stream<AppThemePreference> get themePreference =>
+      _themePreferenceController.stream;
+
   void emitPlayers(List<Player> value) => _playersController.add(value);
 
   void emitHistory(List<MatchHistoryEntry> value) =>
@@ -440,6 +468,9 @@ class FakeSprintRepository implements SprintRepository {
   void emitSync(SyncState value) => _syncController.add(value);
 
   void emitKFactor(int value) => _kFactorController.add(value);
+
+  void emitThemePreference(AppThemePreference value) =>
+      _themePreferenceController.add(value);
 
   @override
   Future<void> submitRoundResults(List<RoundResultInput> results) async {
@@ -470,11 +501,21 @@ class FakeSprintRepository implements SprintRepository {
   }
 
   @override
+  Future<void> setThemePreference(AppThemePreference preference) async {
+    setThemePreferenceCalls += 1;
+    if (setThemePreferenceError != null) {
+      return Future<void>.error(setThemePreferenceError!);
+    }
+    lastSetThemePreference = preference;
+  }
+
+  @override
   void dispose() {
     _playersController.close();
     _historyController.close();
     _syncController.close();
     _kFactorController.close();
+    _themePreferenceController.close();
   }
 }
 

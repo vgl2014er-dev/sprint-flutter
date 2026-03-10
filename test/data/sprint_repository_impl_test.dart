@@ -95,5 +95,45 @@ void main() {
         expect(await database.getSetting('k_factor'), '48');
       },
     );
+
+    test('theme preference defaults to light', () async {
+      expect(await repository.themePreference.first, AppThemePreference.light);
+      expect(await database.getSetting('theme_mode'), 'light');
+    });
+
+    test(
+      'setThemePreference persists preference to database and shared preferences',
+      () async {
+        await repository.setThemePreference(AppThemePreference.dark);
+        await _flush();
+
+        expect(await repository.themePreference.first, AppThemePreference.dark);
+        expect(await database.getSetting('theme_mode'), 'dark');
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('theme_mode_v1'), 'dark');
+      },
+    );
+
+    test(
+      'theme preference load prioritizes database setting over shared preferences',
+      () async {
+        repository.dispose();
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'theme_mode_v1': 'light',
+        });
+        database = AppDatabase.forTesting(NativeDatabase.memory());
+        await database.setSetting('theme_mode', 'dark');
+
+        repository = SprintRepositoryImpl(
+          database: database,
+          enableRemoteSync: false,
+        );
+        await repository.players.firstWhere((players) => players.isNotEmpty);
+        await _flush();
+
+        expect(await repository.themePreference.first, AppThemePreference.dark);
+      },
+    );
   });
 }

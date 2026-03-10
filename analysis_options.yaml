@@ -1,28 +1,129 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# analysis_options.yaml
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# Static analysis configuration for the Sprint project.
+# Built on top of package:flutter_lints/flutter.yaml, extended with additional
+# rules aligned with the project's rules.md coding standards.
+#
+# Docs: https://dart.dev/guides/language/analysis-options
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+# ─── Analyzer ────────────────────────────────────────────────────────────────
+analyzer:
+  # Strict mode — tighten the type system beyond the default.
+  # rules.md: "Write code that is soundly null-safe. Leverage Dart's null
+  #            safety features."
+  language:
+    strict-casts: true # Disallow implicit downcasts; require explicit casts.
+    strict-inference: true # Disallow unresolvable type inference.
+    strict-raw-types: true # Disallow raw generic types (e.g. List instead of List<String>).
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+  # Exclude machine-generated code from analysis — these files are owned by
+  # build_runner (Drift, json_serializable, Riverpod generator, etc.) and must
+  # not be linted or fixed by hand.
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/generated/**"
+
+  # Promote specific diagnostic categories to errors so CI fails on them.
+  errors:
+    # rules.md: "Anticipate and handle potential errors. Don't let your code
+    #            fail silently."
+    missing_required_param: error
+    missing_return: error
+    # Treat invalid annotation usage as errors.
+    invalid_annotation_target: error
+
+# ─── Linter rules ────────────────────────────────────────────────────────────
+#
+# Rules already ON via package:flutter_lints/flutter.yaml (not repeated here):
+#   avoid_print, prefer_const_constructors, prefer_const_declarations,
+#   prefer_const_literals_to_create_immutables, avoid_unnecessary_containers,
+#   sized_box_for_whitespace, use_key_in_widget_constructors,
+#   sort_child_properties_last, use_full_hex_values_for_flutter_colors,
+#   use_build_context_synchronously, no_logic_in_create_state,
+#   curly_braces_in_flow_control_structures, use_rethrow_when_possible,
+#   prefer_is_empty, prefer_is_not_empty, and many more.
+#
+linter:
+  rules:
+    # ── Style & Formatting ──────────────────────────────────────────────────
+    #
+    # rules.md (Flutter style guide): Consistent string quoting throughout.
+    prefer_single_quotes: true
+
+    # rules.md (Code Quality): "Trailing commas" help dart format produce
+    # clean, one-item-per-line diffs and reduce review noise.
+    require_trailing_commas: true
+
+    # rules.md (Dart Best Practices): Keep imports ordered —
+    #   dart: → package: (Flutter) → package: (third-party) → relative
+    directives_ordering: true
+
+    # ── Async Safety ───────────────────────────────────────────────────────
+    #
+    # rules.md: "Ensure proper use of async/await for asynchronous operations
+    #            with robust error handling."
+    # A fire-and-forget Future is almost always a bug; use unawaited() or
+    # await explicitly.
+    unawaited_futures: true
+
+    # rules.md (Flutter Best Practices / Streams): StreamSubscriptions that
+    # are never cancelled leak memory and can cause setState-after-dispose
+    # crashes.
+    cancel_subscriptions: true
+
+    # Sinks (e.g. StreamController) that are never closed prevent GC and can
+    # block isolate shutdown.
+    close_sinks: true
+
+    # ── Code Quality ───────────────────────────────────────────────────────
+    #
+    # rules.md: "Widgets (especially StatelessWidget) are immutable." Prefer
+    # final for every local variable that is never reassigned.
+    prefer_final_locals: true
+
+    # rules.md (Dart Best Practices): "Use arrow syntax for simple one-line
+    # functions."
+    prefer_expression_function_bodies: true
+
+    # Wrapping a named function in an anonymous lambda is redundant;
+    # use a tear-off instead (e.g. `items.forEach(print)` not
+    # `items.forEach((x) => print(x))`).
+    # rules.md: "Write code that is as short as it can be while remaining clear."
+    unnecessary_lambdas: true
+
+    # Passing a value that equals the parameter default adds noise without
+    # conveying intent.
+    avoid_redundant_argument_values: true
+
+    # Prefer a trailing return type and consistent type annotations.
+    # rules.md: "Avoid abbreviations; use meaningful, consistent names."
+    always_declare_return_types: true
+
+    # ── Error & Exception Handling ──────────────────────────────────────────
+    #
+    # rules.md: "Use try-catch blocks for handling exceptions, and use
+    #            exceptions appropriate for the type of exception."
+    # Bare `catch` clauses also catch Errors (OOM, stack overflow) which
+    # should almost never be swallowed.  Use `on SpecificException catch (e)`.
+    # Where an intentional catch-all is needed (e.g. swallowing audio errors),
+    # suppress locally: // ignore: avoid_catches_without_on_clauses
+    avoid_catches_without_on_clauses: true
+
+    # rules.md: "Use custom exceptions for situations specific to your code."
+    # Throwing arbitrary objects (Strings, Maps) bypasses the exception
+    # hierarchy and makes catching impossible.
+    only_throw_errors: true
+
+    # ── Documentation ───────────────────────────────────────────────────────
+    #
+    # rules.md (Documentation): "Always document public APIs."
+    # Enabled as a warning (default) rather than an error to allow gradual
+    # adoption across the codebase.
+    public_member_api_docs: false # Set to true once existing APIs are documented.
+
+    # rules.md (Commenting Style): "Use /// for doc comments."
+    # Enforces /// over /** */ for all documentation comments.
+    slash_for_doc_comments: true
