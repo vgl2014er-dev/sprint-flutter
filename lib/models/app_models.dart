@@ -786,6 +786,7 @@ class AppState {
     required this.leaderboardSource,
     required this.localSessionState,
     required this.deathMatchInProgress,
+    required this.deathMatchLives,
     required this.deathMatchParticipantIds,
     required this.deathMatchPairingStrategy,
     required this.deathMatchLossesByPlayerId,
@@ -806,6 +807,7 @@ class AppState {
   final LeaderboardSource leaderboardSource;
   final LocalSessionState localSessionState;
   final bool deathMatchInProgress;
+  final int deathMatchLives;
   final List<String> deathMatchParticipantIds;
   final PairingStrategy? deathMatchPairingStrategy;
   final Map<String, int> deathMatchLossesByPlayerId;
@@ -834,6 +836,7 @@ class AppState {
     LeaderboardSource? leaderboardSource,
     LocalSessionState? localSessionState,
     bool? deathMatchInProgress,
+    int? deathMatchLives,
     List<String>? deathMatchParticipantIds,
     PairingStrategy? deathMatchPairingStrategy,
     bool clearDeathMatchPairingStrategy = false,
@@ -859,6 +862,7 @@ class AppState {
       leaderboardSource: leaderboardSource ?? this.leaderboardSource,
       localSessionState: localSessionState ?? this.localSessionState,
       deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
+      deathMatchLives: deathMatchLives ?? this.deathMatchLives,
       deathMatchParticipantIds:
           deathMatchParticipantIds ?? this.deathMatchParticipantIds,
       deathMatchPairingStrategy: clearDeathMatchPairingStrategy
@@ -892,6 +896,7 @@ class AppState {
       leaderboardSource: LeaderboardSource.db,
       localSessionState: LocalSessionState(),
       deathMatchInProgress: false,
+      deathMatchLives: 2,
       deathMatchParticipantIds: <String>[],
       deathMatchPairingStrategy: null,
       deathMatchLossesByPlayerId: <String, int>{},
@@ -920,6 +925,7 @@ class AppState {
             leaderboardSource == other.leaderboardSource &&
             localSessionState == other.localSessionState &&
             deathMatchInProgress == other.deathMatchInProgress &&
+            deathMatchLives == other.deathMatchLives &&
             eq.equals(
               deathMatchParticipantIds,
               other.deathMatchParticipantIds,
@@ -952,6 +958,7 @@ class AppState {
     leaderboardSource,
     localSessionState,
     deathMatchInProgress,
+    deathMatchLives,
     const DeepCollectionEquality().hash(deathMatchParticipantIds),
     deathMatchPairingStrategy,
     const DeepCollectionEquality().hash(deathMatchLossesByPlayerId),

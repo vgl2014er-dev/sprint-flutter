@@ -84,12 +84,13 @@ class SprintApp extends ConsumerWidget {
       Screen.deathMatchSelection => DeathMatchSelectionScreen(
         players: state.players,
         deathMatchInProgress: state.deathMatchInProgress,
+        deathMatchLives: state.deathMatchLives,
         deathMatchChampionId: state.deathMatchChampionId,
         deathMatchParticipantIds: state.deathMatchParticipantIds,
         deathMatchPairingStrategy: state.deathMatchPairingStrategy,
         deathMatchLossesByPlayerId: state.deathMatchLossesByPlayerId,
-        onStart: (selected, strategy) {
-          final success = controller.startDeathMatch(selected, strategy);
+        onStart: (selected, strategy, lives) {
+          final success = controller.startDeathMatch(selected, strategy, lives);
           if (!success) {
             _showSnack(context, 'Select at least 2 players.');
           }
@@ -491,8 +492,8 @@ class LandingScreen extends StatelessWidget {
         ),
         _ActionCard(
           title: 'Death Match',
-          subtitle: 'Two losses and you are out.',
-          icon: Icons.dangerous_rounded,
+          subtitle: 'Set lives and fight until one remains.',
+          icon: Icons.favorite_rounded,
           onTap: onOpenDeathMatch,
           accent: const Color(0xFFBE123C),
         ),
@@ -726,6 +727,7 @@ class DeathMatchSelectionScreen extends StatefulWidget {
   const DeathMatchSelectionScreen({
     required this.players,
     required this.deathMatchInProgress,
+    required this.deathMatchLives,
     required this.deathMatchChampionId,
     required this.deathMatchParticipantIds,
     required this.deathMatchPairingStrategy,
@@ -738,11 +740,12 @@ class DeathMatchSelectionScreen extends StatefulWidget {
 
   final List<Player> players;
   final bool deathMatchInProgress;
+  final int deathMatchLives;
   final String? deathMatchChampionId;
   final List<String> deathMatchParticipantIds;
   final PairingStrategy? deathMatchPairingStrategy;
   final Map<String, int> deathMatchLossesByPlayerId;
-  final void Function(Set<String>, PairingStrategy) onStart;
+  final void Function(Set<String>, PairingStrategy, int) onStart;
   final VoidCallback onReset;
   final VoidCallback onResume;
 
@@ -752,8 +755,12 @@ class DeathMatchSelectionScreen extends StatefulWidget {
 }
 
 class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
+  static const int _minLives = 1;
+  static const int _maxLives = 9;
+
   late Set<String> _selectedIds;
   late PairingStrategy _pairingStrategy;
+  late int _lives;
 
   @override
   void initState() {
@@ -761,6 +768,7 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
     _selectedIds = widget.players.map((player) => player.id).toSet();
     _pairingStrategy =
         widget.deathMatchPairingStrategy ?? PairingStrategy.random;
+    _lives = widget.deathMatchLives.clamp(_minLives, _maxLives);
   }
 
   @override
@@ -816,7 +824,8 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
             if (!widget.deathMatchParticipantIds.contains(player.id)) {
               return false;
             }
-            return (widget.deathMatchLossesByPlayerId[player.id] ?? 0) < 2;
+            return (widget.deathMatchLossesByPlayerId[player.id] ?? 0) <
+                widget.deathMatchLives;
           })
           .toList(growable: false);
 
@@ -838,6 +847,10 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
+                  '${widget.deathMatchLives == 1 ? 'One loss' : '${widget.deathMatchLives} losses'} eliminates a player.',
+                ),
+                const SizedBox(height: 4),
+                Text(
                   'Survivors: ${survivors.length} / ${widget.deathMatchParticipantIds.length}',
                 ),
                 const SizedBox(height: 8),
@@ -849,7 +862,7 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
                             dense: true,
                             title: Text(player.name),
                             trailing: Text(
-                              'losses ${widget.deathMatchLossesByPlayerId[player.id] ?? 0}/2',
+                              'losses ${widget.deathMatchLossesByPlayerId[player.id] ?? 0}/${widget.deathMatchLives}',
                             ),
                           ),
                         )
@@ -906,6 +919,52 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: <Widget>[
+              const Text(
+                'Lives',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '(losses to eliminate)',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Decrease lives',
+                onPressed: _lives <= _minLives
+                    ? null
+                    : () {
+                        setState(() {
+                          _lives -= 1;
+                        });
+                      },
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+              ),
+              Text(
+                '$_lives',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Increase lives',
+                onPressed: _lives >= _maxLives
+                    ? null
+                    : () {
+                        setState(() {
+                          _lives += 1;
+                        });
+                      },
+                icon: const Icon(Icons.add_circle_outline_rounded),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: GridView.count(
             crossAxisCount: 3,
@@ -943,7 +1002,7 @@ class _DeathMatchSelectionScreenState extends State<DeathMatchSelectionScreen> {
           child: ElevatedButton.icon(
             onPressed: _selectedIds.length < 2
                 ? null
-                : () => widget.onStart(_selectedIds, _pairingStrategy),
+                : () => widget.onStart(_selectedIds, _pairingStrategy, _lives),
             icon: const Icon(Icons.play_arrow_rounded),
             label: const Text('Start Death Match'),
           ),
@@ -1020,8 +1079,8 @@ class MatchRunnerScreen extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFFDA4AF)),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text(
-                'Two losses eliminates a player. Draws do not add losses.',
+              child: Text(
+                '${state.deathMatchLives == 1 ? 'One loss' : '${state.deathMatchLives} losses'} eliminates a player. Draws do not add losses.',
               ),
             ),
           Expanded(
@@ -1031,6 +1090,7 @@ class MatchRunnerScreen extends StatelessWidget {
                     match: currentMatch,
                     history: state.history,
                     isDeathMatch: state.deathMatchInProgress,
+                    deathMatchLives: state.deathMatchLives,
                     deathMatchLossesByPlayerId:
                         state.deathMatchLossesByPlayerId,
                     deathMatchMatchesPlayedByPlayerId:
@@ -1056,9 +1116,9 @@ class MatchRunnerScreen extends StatelessWidget {
 }
 
 int _survivorsCount(AppState state) {
-  return state.deathMatchParticipantIds
-      .where((id) => (state.deathMatchLossesByPlayerId[id] ?? 0) < 2)
-      .length;
+  return state.deathMatchParticipantIds.where((id) {
+    return (state.deathMatchLossesByPlayerId[id] ?? 0) < state.deathMatchLives;
+  }).length;
 }
 
 class _MatchCard extends StatelessWidget {
@@ -1066,6 +1126,7 @@ class _MatchCard extends StatelessWidget {
     required this.match,
     required this.history,
     required this.isDeathMatch,
+    required this.deathMatchLives,
     required this.deathMatchLossesByPlayerId,
     required this.deathMatchMatchesPlayedByPlayerId,
     required this.onStart,
@@ -1077,6 +1138,7 @@ class _MatchCard extends StatelessWidget {
   final UiRoundMatch match;
   final List<MatchHistoryEntry> history;
   final bool isDeathMatch;
+  final int deathMatchLives;
   final Map<String, int> deathMatchLossesByPlayerId;
   final Map<String, int> deathMatchMatchesPlayedByPlayerId;
   final VoidCallback onStart;
@@ -1112,6 +1174,7 @@ class _MatchCard extends StatelessWidget {
               label: '${match.player1.name.toUpperCase()} WINS',
               subtitle:
                   'Elo: ${match.player1.elo} · ${p1WinRate.toStringAsFixed(0)}%',
+              detail: isDeathMatch ? _buildLivesRow(match.player1.id) : null,
               active: match.played && match.winnerId == match.player1.id,
               enabled: match.started && !match.played,
               onPressed: onP1,
@@ -1121,6 +1184,7 @@ class _MatchCard extends StatelessWidget {
               label: '${match.player2.name.toUpperCase()} WINS',
               subtitle:
                   'Elo: ${match.player2.elo} · ${p2WinRate.toStringAsFixed(0)}%',
+              detail: isDeathMatch ? _buildLivesRow(match.player2.id) : null,
               active: match.played && match.winnerId == match.player2.id,
               enabled: match.started && !match.played,
               onPressed: onP2,
@@ -1149,12 +1213,39 @@ class _MatchCard extends StatelessWidget {
     }).length;
     return wins / history.length * 100;
   }
+
+  Widget _buildLivesRow(String playerId) {
+    final losses = deathMatchLossesByPlayerId[playerId] ?? 0;
+    final remainingLives = (deathMatchLives - losses).clamp(0, deathMatchLives);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ...List<Widget>.generate(deathMatchLives, (index) {
+          final filled = index < remainingLives;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: Icon(
+              filled ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 14,
+              color: filled ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
+            ),
+          );
+        }),
+        const SizedBox(width: 6),
+        Text(
+          '$remainingLives/$deathMatchLives',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
 }
 
 class _ResultButton extends StatelessWidget {
   const _ResultButton({
     required this.label,
     required this.subtitle,
+    this.detail,
     required this.active,
     required this.enabled,
     required this.onPressed,
@@ -1162,6 +1253,7 @@ class _ResultButton extends StatelessWidget {
 
   final String label;
   final String subtitle;
+  final Widget? detail;
   final bool active;
   final bool enabled;
   final VoidCallback onPressed;
@@ -1178,6 +1270,8 @@ class _ResultButton extends StatelessWidget {
         children: <Widget>[
           Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
           Text(subtitle, style: const TextStyle(fontSize: 12)),
+          if (detail != null) const SizedBox(height: 4),
+          if (detail case final Widget extraDetail) extraDetail,
         ],
       ),
     );

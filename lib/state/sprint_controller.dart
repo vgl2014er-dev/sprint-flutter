@@ -105,6 +105,7 @@ class SprintController extends StateNotifier<AppState> {
   bool startDeathMatch(
     Set<String> selectedIds,
     PairingStrategy pairingStrategy,
+    int lives,
   ) {
     if (_isClientLockedToLeaderboard()) {
       return false;
@@ -117,6 +118,8 @@ class SprintController extends StateNotifier<AppState> {
       return false;
     }
 
+    final resolvedLives = lives.clamp(_minDeathMatchLives, _maxDeathMatchLives);
+
     _resetDeathMatchState();
 
     _deathMatchParticipantIds
@@ -125,6 +128,7 @@ class SprintController extends StateNotifier<AppState> {
 
     state = state.copyWith(
       deathMatchInProgress: true,
+      deathMatchLives: resolvedLives,
       deathMatchParticipantIds: selectedPlayers
           .map((player) => player.id)
           .toList(growable: false),
@@ -395,7 +399,7 @@ class SprintController extends StateNotifier<AppState> {
         .where(
           (participant) =>
               (state.deathMatchLossesByPlayerId[participant.id] ?? 0) <
-              _deathMatchEliminationLosses,
+              state.deathMatchLives,
         )
         .toList(growable: false);
 
@@ -644,7 +648,8 @@ class SprintController extends StateNotifier<AppState> {
     super.dispose();
   }
 
-  static const int _deathMatchEliminationLosses = 2;
+  static const int _minDeathMatchLives = 1;
+  static const int _maxDeathMatchLives = 9;
   static const String _defaultLocalEndpointName = 'Sprint Device';
 
   static const Set<LocalSessionPhase> _clientLockedPhases = <LocalSessionPhase>{
