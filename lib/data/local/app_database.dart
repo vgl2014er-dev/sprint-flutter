@@ -78,7 +78,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   /// Creates an instance backed by a custom executor (used in tests).
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 1;
@@ -88,25 +88,25 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<MatchHistoryData>> watchHistory() {
-    return (select(matchHistory)
-          ..orderBy(<OrderingTerm Function(MatchHistory)>[
-            (table) => OrderingTerm.desc(table.timestamp),
-          ]))
+    return (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
+          (table) => OrderingTerm.desc(table.timestamp),
+        ]))
         .watch();
   }
 
   Future<List<Player>> getPlayers() => select(players).get();
 
   Future<List<MatchHistoryData>> getHistory() {
-    return (select(matchHistory)
-          ..orderBy(<OrderingTerm Function(MatchHistory)>[
-            (table) => OrderingTerm.desc(table.timestamp),
-          ]))
+    return (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
+          (table) => OrderingTerm.desc(table.timestamp),
+        ]))
         .get();
   }
 
   Future<MatchHistoryData?> getHistoryById(String id) {
-    return (select(matchHistory)..where((table) => table.id.equals(id))).getSingleOrNull();
+    return (select(
+      matchHistory,
+    )..where((table) => table.id.equals(id))).getSingleOrNull();
   }
 
   Future<void> upsertPlayers(List<PlayersCompanion> companions) async {
@@ -139,7 +139,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<String?> getSetting(String key) async {
-    final row = await (select(appSettings)..where((table) => table.key.equals(key))).getSingleOrNull();
+    final row = await (select(
+      appSettings,
+    )..where((table) => table.key.equals(key))).getSingleOrNull();
     return row?.value;
   }
 

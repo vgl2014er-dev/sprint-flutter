@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_logger.dart';
 import '../data/local/app_database.dart' as db;
 import '../data/repository/sprint_repository.dart';
 import '../data/repository/sprint_repository_impl.dart';
@@ -62,7 +63,7 @@ class SprintController extends StateNotifier<AppState> {
         _localSnapshot = value;
         _refreshProjectedData();
       }),
-      _platformChannels.errors.listen((_) {}),
+      _platformChannels.errors.listen(_onPlatformError),
     ]);
 
     _syncImmersiveModeForState(state);
@@ -230,14 +231,15 @@ class SprintController extends StateNotifier<AppState> {
 
     _applyDeathMatchResult(submittedMatch!, result);
 
-    unawaited(
-      _repository.submitRoundResults(<RoundResultInput>[
+    _runRepositoryWrite(
+      () => _repository.submitRoundResults(<RoundResultInput>[
         RoundResultInput(
           p1Id: submittedMatch!.player1.id,
           p2Id: submittedMatch!.player2.id,
           result: result,
         ),
       ]),
+      action: 'submitRoundResults',
     );
   }
 
@@ -304,15 +306,21 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   void resetData() {
-    unawaited(_repository.resetAllData());
+    _runRepositoryWrite(_repository.resetAllData, action: 'resetAllData');
   }
 
   void setKFactor(int kFactor) {
-    unawaited(_repository.setKFactor(kFactor));
+    _runRepositoryWrite(
+      () => _repository.setKFactor(kFactor),
+      action: 'setKFactor',
+    );
   }
 
   void deleteMatch(String matchId) {
-    unawaited(_repository.deleteMatch(matchId));
+    _runRepositoryWrite(
+      () => _repository.deleteMatch(matchId),
+      action: 'deleteMatch',
+    );
   }
 
   void openProfile(String playerId, Screen from) {
@@ -333,38 +341,65 @@ class SprintController extends StateNotifier<AppState> {
 
   void startLocalHosting(String localEndpointName) {
     state = state.copyWith(leaderboardSource: LeaderboardSource.db);
-    unawaited(_platformChannels.useDatabaseModeForLocal());
-    unawaited(_platformChannels.startLocalHosting(localEndpointName));
+    _runPlatformCommand(
+      _platformChannels.useDatabaseModeForLocal,
+      action: 'useDatabaseModeForLocal',
+    );
+    _runPlatformCommand(
+      () => _platformChannels.startLocalHosting(localEndpointName),
+      action: 'startLocalHosting',
+    );
   }
 
   void stopLocalHosting() {
-    unawaited(_platformChannels.stopLocalHosting());
+    _runPlatformCommand(
+      _platformChannels.stopLocalHosting,
+      action: 'stopLocalHosting',
+    );
   }
 
   void scanLocalHosts(String localEndpointName) {
-    unawaited(_platformChannels.scanLocalHosts(localEndpointName));
+    _runPlatformCommand(
+      () => _platformChannels.scanLocalHosts(localEndpointName),
+      action: 'scanLocalHosts',
+    );
   }
 
   void connectToLocalHost(String endpointId) {
-    unawaited(_platformChannels.connectToLocalHost(endpointId));
+    _runPlatformCommand(
+      () => _platformChannels.connectToLocalHost(endpointId),
+      action: 'connectToLocalHost',
+    );
   }
 
   void acceptLocalConnection() {
-    unawaited(_platformChannels.acceptLocalConnection());
+    _runPlatformCommand(
+      _platformChannels.acceptLocalConnection,
+      action: 'acceptLocalConnection',
+    );
   }
 
   void rejectLocalConnection() {
-    unawaited(_platformChannels.rejectLocalConnection());
+    _runPlatformCommand(
+      _platformChannels.rejectLocalConnection,
+      action: 'rejectLocalConnection',
+    );
   }
 
   void disconnectLocalConnection() {
-    unawaited(_platformChannels.disconnectLocalConnection());
+    _runPlatformCommand(
+      _platformChannels.disconnectLocalConnection,
+      action: 'disconnectLocalConnection',
+    );
   }
 
   void useDatabaseLeaderboard() {
     state = state.copyWith(leaderboardSource: LeaderboardSource.db);
     _syncImmersiveModeForState(state);
-    unawaited(_platformChannels.useDatabaseModeForLocal());
+    _runPlatformCommand(
+      _platformChannels.useDatabaseModeForLocal,
+      action: 'useDatabaseModeForLocal',
+    );
     _refreshProjectedData();
   }
 
@@ -818,6 +853,21 @@ class SprintController extends StateNotifier<AppState> {
     _refreshProjectedData();
   }
 
+  void _onPlatformError(String message) {
+    AppLogger.warning(
+      'Platform channel reported an error event.',
+      name: 'sprint.controller',
+      error: message,
+    );
+    state = state.copyWith(
+      localSessionState: state.localSessionState.copyWith(
+        phase: LocalSessionPhase.error,
+        errorMessage: message,
+      ),
+    );
+    _syncImmersiveModeForState(state);
+  }
+
   void _refreshProjectedData() {
     final source = state.leaderboardSource;
 
@@ -861,7 +911,10 @@ class SprintController extends StateNotifier<AppState> {
         lastSyncedEpochMillis: _dbSyncState.lastSyncedEpochMillis,
         players: _dbPlayers,
       );
-      unawaited(_platformChannels.publishLocalHostedSnapshot(snapshot));
+      _runPlatformCommand(
+        () => _platformChannels.publishLocalHostedSnapshot(snapshot),
+        action: 'publishLocalHostedSnapshot',
+      );
     }
   }
 
@@ -875,7 +928,10 @@ class SprintController extends StateNotifier<AppState> {
       return;
     }
     _immersiveShowStatusBar = showStatusBar;
-    unawaited(_platformChannels.setImmersiveMode(showStatusBar: showStatusBar));
+    _runPlatformCommand(
+      () => _platformChannels.setImmersiveMode(showStatusBar: showStatusBar),
+      action: 'setImmersiveMode',
+    );
   }
 
   bool _shouldUseFullscreenLeaderboard(AppState value) {
@@ -891,6 +947,55 @@ class SprintController extends StateNotifier<AppState> {
       subscription.cancel();
     }
     super.dispose();
+  }
+
+  void _runRepositoryWrite(
+    Future<void> Function() operation, {
+    required String action,
+  }) {
+    _runGuardedAsync(
+      operation,
+      message: 'Repository write failed: $action',
+      loggerName: 'sprint.controller.repository',
+    );
+  }
+
+  void _runPlatformCommand(
+    Future<void> Function() operation, {
+    required String action,
+  }) {
+    _runGuardedAsync(
+      operation,
+      message: 'Platform command failed: $action',
+      loggerName: 'sprint.controller.platform',
+    );
+  }
+
+  void _runGuardedAsync(
+    Future<void> Function() operation, {
+    required String message,
+    required String loggerName,
+  }) {
+    try {
+      final future = operation();
+      unawaited(
+        future.catchError((Object error, StackTrace stackTrace) {
+          AppLogger.error(
+            message,
+            name: loggerName,
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        message,
+        name: loggerName,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   static const int _minDeathMatchLives = 1;

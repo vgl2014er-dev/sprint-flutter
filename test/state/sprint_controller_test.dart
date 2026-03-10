@@ -94,6 +94,14 @@ void main() {
       expect(controller.state.screen, Screen.playerList);
     });
 
+    test('surfaces platform errors in local session state', () async {
+      platform.emitError('nearby_failed');
+      await flushState();
+
+      expect(controller.state.localSessionState.phase, LocalSessionPhase.error);
+      expect(controller.state.localSessionState.errorMessage, 'nearby_failed');
+    });
+
     test(
       'keeps snapshot while disconnected and falls back to db in db mode',
       () async {
@@ -147,6 +155,49 @@ void main() {
       expect(platform.useDbForLocalCalls, 1);
       expect(platform.startLocalHostingCalls, 1);
     });
+
+    test(
+      'handles repository write failures without uncaught async errors',
+      () async {
+        repository.setKFactorError = StateError('set_k_failed');
+        repository.deleteMatchError = StateError('delete_failed');
+        repository.submitRoundResultsError = StateError('submit_failed');
+
+        final started = controller.generateMatches(
+          const <String>{'a', 'b'},
+          PairingStrategy.random,
+          targetMatchesPerPlayer: 1,
+        );
+        expect(started, isTrue);
+
+        controller.setKFactor(48);
+        controller.deleteMatch('match-1');
+        final match = controller.state.roundMatches.single;
+        controller.recordResult(match.id, MatchResult.p1);
+        await flushState();
+
+        expect(repository.setKFactorCalls, 1);
+        expect(repository.deleteMatchCalls, 1);
+        expect(repository.submitRoundResultsCalls, 1);
+      },
+    );
+
+    test(
+      'handles platform command failures without uncaught async errors',
+      () async {
+        platform.useDbForLocalError = StateError('use_db_failed');
+        platform.startLocalHostingError = StateError('start_host_failed');
+        platform.scanLocalHostsError = StateError('scan_hosts_failed');
+
+        controller.startLocalHosting('Sprint Device');
+        controller.scanLocalHosts('Sprint Device');
+        await flushState();
+
+        expect(platform.useDbForLocalCalls, 1);
+        expect(platform.startLocalHostingCalls, 1);
+        expect(platform.scanLocalHostsCalls, 1);
+      },
+    );
 
     test('scanning local hosts keeps setup flow on landing', () async {
       expect(controller.state.screen, Screen.landing);
@@ -361,6 +412,13 @@ class FakeSprintRepository implements SprintRepository {
 
   final List<List<RoundResultInput>> submittedResults =
       <List<RoundResultInput>>[];
+  int submitRoundResultsCalls = 0;
+  int deleteMatchCalls = 0;
+  int setKFactorCalls = 0;
+
+  Object? submitRoundResultsError;
+  Object? deleteMatchError;
+  Object? setKFactorError;
 
   @override
   Stream<List<Player>> get players => _playersController.stream;
@@ -385,17 +443,31 @@ class FakeSprintRepository implements SprintRepository {
 
   @override
   Future<void> submitRoundResults(List<RoundResultInput> results) async {
+    submitRoundResultsCalls += 1;
+    if (submitRoundResultsError != null) {
+      return Future<void>.error(submitRoundResultsError!);
+    }
     submittedResults.add(List<RoundResultInput>.from(results));
   }
 
   @override
-  Future<void> deleteMatch(String matchId) async {}
+  Future<void> deleteMatch(String matchId) async {
+    deleteMatchCalls += 1;
+    if (deleteMatchError != null) {
+      return Future<void>.error(deleteMatchError!);
+    }
+  }
 
   @override
   Future<void> resetAllData() async {}
 
   @override
-  Future<void> setKFactor(int kFactor) async {}
+  Future<void> setKFactor(int kFactor) async {
+    setKFactorCalls += 1;
+    if (setKFactorError != null) {
+      return Future<void>.error(setKFactorError!);
+    }
+  }
 
   @override
   void dispose() {
@@ -418,6 +490,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   int startLocalHostingCalls = 0;
   int scanLocalHostsCalls = 0;
   final List<bool> immersiveShowStatusBarCalls = <bool>[];
+  Object? startLocalHostingError;
+  Object? scanLocalHostsError;
+  Object? useDbForLocalError;
 
   @override
   Stream<LocalSessionState> get localSessionState =>
@@ -436,9 +511,14 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   void emitLocalSnapshot(LocalLeaderboardSnapshot snapshot) =>
       _localSnapshotController.add(snapshot);
 
+  void emitError(String message) => _errorsController.add(message);
+
   @override
   Future<void> startLocalHosting(String localEndpointName) async {
     startLocalHostingCalls += 1;
+    if (startLocalHostingError != null) {
+      return Future<void>.error(startLocalHostingError!);
+    }
   }
 
   @override
@@ -447,6 +527,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   @override
   Future<void> scanLocalHosts(String localEndpointName) async {
     scanLocalHostsCalls += 1;
+    if (scanLocalHostsError != null) {
+      return Future<void>.error(scanLocalHostsError!);
+    }
   }
 
   @override
@@ -464,6 +547,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   @override
   Future<void> useDatabaseModeForLocal() async {
     useDbForLocalCalls += 1;
+    if (useDbForLocalError != null) {
+      return Future<void>.error(useDbForLocalError!);
+    }
   }
 
   @override

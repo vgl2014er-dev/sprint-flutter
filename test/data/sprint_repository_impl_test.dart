@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,11 +37,7 @@ void main() {
       final p2 = seededPlayers[1];
 
       await repository.submitRoundResults(<RoundResultInput>[
-        RoundResultInput(
-          p1Id: p1.id,
-          p2Id: p2.id,
-          result: MatchResult.p1,
-        ),
+        RoundResultInput(p1Id: p1.id, p2Id: p2.id, result: MatchResult.p1),
       ]);
       await _flush();
 
@@ -65,11 +59,7 @@ void main() {
       final p2 = seededPlayers[1];
 
       await repository.submitRoundResults(<RoundResultInput>[
-        RoundResultInput(
-          p1Id: p1.id,
-          p2Id: p2.id,
-          result: MatchResult.p1,
-        ),
+        RoundResultInput(p1Id: p1.id, p2Id: p2.id, result: MatchResult.p1),
       ]);
       await _flush();
 
@@ -91,16 +81,19 @@ void main() {
       expect(rolledBackP2.elo, Defaults.initialElo);
     });
 
-    test('setKFactor persists supported values and rejects unsupported values', () async {
-      await repository.setKFactor(48);
-      await _flush();
+    test(
+      'setKFactor persists supported values and rejects unsupported values',
+      () async {
+        await repository.setKFactor(48);
+        await _flush();
 
-      expect(await database.getSetting('k_factor'), '48');
+        expect(await database.getSetting('k_factor'), '48');
 
-      await repository.setKFactor(999);
-      await _flush();
+        await repository.setKFactor(999);
+        await _flush();
 
-      expect(await database.getSetting('k_factor'), '48');
-    });
+        expect(await database.getSetting('k_factor'), '48');
+      },
+    );
   });
 }
