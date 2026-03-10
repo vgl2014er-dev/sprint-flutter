@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../models/app_models.dart';
@@ -155,6 +156,12 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       default:
         break;
     }
+  }
+
+  /// Exposes platform-event parsing for unit tests.
+  @visibleForTesting
+  Future<void> handleMethodCallForTest(MethodCall call) {
+    return _onMethodCall(call);
   }
 
   @override

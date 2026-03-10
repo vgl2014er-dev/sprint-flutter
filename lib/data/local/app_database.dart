@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 part 'app_database.g.dart';
 
+/// Drift table containing player leaderboard stats.
 class Players extends Table {
   TextColumn get id => text()();
 
@@ -26,6 +27,7 @@ class Players extends Table {
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};
 }
 
+/// Drift table storing immutable match history entries.
 class MatchHistory extends Table {
   TextColumn get id => text()();
 
@@ -53,6 +55,7 @@ class MatchHistory extends Table {
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};
 }
 
+/// Drift table for app-level key-value settings.
 class AppSettings extends Table {
   TextColumn get key => text()();
 
@@ -73,6 +76,9 @@ LazyDatabase _openConnection() {
 @DriftDatabase(tables: <Type>[Players, MatchHistory, AppSettings])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+
+  /// Creates an instance backed by a custom executor (used in tests).
+  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
   int get schemaVersion => 1;

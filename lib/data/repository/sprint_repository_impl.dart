@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_logger.dart';
 import '../../domain/defaults.dart';
 import '../../domain/elo_engine.dart';
 import '../../domain/history_policy.dart';
@@ -12,29 +13,52 @@ import '../../models/app_models.dart' as models;
 import '../local/app_database.dart' as db;
 import 'sprint_repository.dart';
 
+typedef SharedPreferencesLoader = Future<SharedPreferences> Function();
+
 class SprintRepositoryImpl implements SprintRepository {
   SprintRepositoryImpl({
     required db.AppDatabase database,
     FirebaseDatabase? firebaseDatabase,
+    SharedPreferencesLoader sharedPreferencesLoader =
+        SharedPreferences.getInstance,
+    bool enableRemoteSync = true,
   })  : _database = database,
-        _firebaseDatabase = firebaseDatabase ?? FirebaseDatabase.instance {
-    _playersRef = _firebaseDatabase.ref(Defaults.dbPlayersPath);
-    _historyRef = _firebaseDatabase.ref(Defaults.dbHistoryPath);
-    _tournamentRef = _firebaseDatabase.ref(Defaults.dbTournamentPath);
-    _settingsRef = _firebaseDatabase.ref(Defaults.dbSettingsPath);
+        _firebaseDatabase = enableRemoteSync
+            ? (firebaseDatabase ?? FirebaseDatabase.instance)
+            : null,
+        _loadSharedPreferences = sharedPreferencesLoader,
+        _enableRemoteSync = enableRemoteSync {
+    if (_enableRemoteSync) {
+      final firebase = _firebaseDatabase!;
+      _playersRef = firebase.ref(Defaults.dbPlayersPath);
+      _historyRef = firebase.ref(Defaults.dbHistoryPath);
+      _tournamentRef = firebase.ref(Defaults.dbTournamentPath);
+      _settingsRef = firebase.ref(Defaults.dbSettingsPath);
+    }
 
     _syncStateController.add(_syncStateValue);
     _kFactorController.add(_kFactorValue);
-    unawaited(_initialize());
+    unawaited(
+      _initialize().catchError((Object error, StackTrace stackTrace) {
+        AppLogger.error(
+          'Repository initialization failed.',
+          name: 'sprint.repository',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
   }
 
   final db.AppDatabase _database;
-  final FirebaseDatabase _firebaseDatabase;
+  final FirebaseDatabase? _firebaseDatabase;
+  final SharedPreferencesLoader _loadSharedPreferences;
+  final bool _enableRemoteSync;
 
-  late final DatabaseReference _playersRef;
-  late final DatabaseReference _historyRef;
-  late final DatabaseReference _tournamentRef;
-  late final DatabaseReference _settingsRef;
+  DatabaseReference? _playersRef;
+  DatabaseReference? _historyRef;
+  DatabaseReference? _tournamentRef;
+  DatabaseReference? _settingsRef;
 
   final StreamController<models.SyncState> _syncStateController =
       StreamController<models.SyncState>.broadcast();
@@ -72,6 +96,9 @@ class SprintRepositoryImpl implements SprintRepository {
   Future<void> _initialize() async {
     await _seedPlayersIfEmpty();
     await _loadInitialKFactor();
+    if (!_enableRemoteSync) {
+      return;
+    }
     await _clearLegacyTournamentOnce();
     _attachFirebaseListeners();
   }
@@ -239,82 +266,155 @@ class SprintRepositoryImpl implements SprintRepository {
   }
 
   Future<void> _clearLegacyTournamentOnce() async {
-    final prefs = await SharedPreferences.getInstance();
+    final tournamentRef = _tournamentRef;
+    if (!_enableRemoteSync || tournamentRef == null) {
+      return;
+    }
+
+    final prefs = await _loadSharedPreferences();
     if (prefs.getBool(_keyLegacyTournamentCleared) == true) {
       return;
     }
 
     try {
-      await _tournamentRef.set(null);
+      await tournamentRef.set(null);
       await prefs.setBool(_keyLegacyTournamentCleared, true);
-    } catch (_) {
-      // Keep going; sync can still work without clearing this legacy path.
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Failed to clear legacy tournament path.',
+        name: 'sprint.repository',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   void _attachFirebaseListeners() {
-    _playersSubscription = _playersRef.onValue.listen((event) async {
-      final remotePlayers = _parsePlayers(event.snapshot);
-      if (remotePlayers.isEmpty) {
-        return;
-      }
+    final playersRef = _playersRef;
+    final historyRef = _historyRef;
+    final settingsRef = _settingsRef;
+    if (playersRef == null || historyRef == null || settingsRef == null) {
+      return;
+    }
 
-      await _database.transactionRun(() async {
-        await _database.clearPlayers();
-        await _database.upsertPlayers(
-          remotePlayers.map(_playerToCompanion).toList(growable: false),
+    _playersSubscription = playersRef.onValue.listen(
+      (event) async {
+        final remotePlayers = _parsePlayers(event.snapshot);
+        if (remotePlayers.isEmpty) {
+          return;
+        }
+
+        await _database.transactionRun(() async {
+          await _database.clearPlayers();
+          await _database.upsertPlayers(
+            remotePlayers.map(_playerToCompanion).toList(growable: false),
+          );
+        });
+
+        _setSyncState(
+          _syncStateValue.copyWith(
+            lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
+          ),
         );
-      });
-
-      _setSyncState(
-        _syncStateValue.copyWith(lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch),
-      );
-    });
-
-    _historySubscription = _historyRef.onValue.listen((event) async {
-      if (!event.snapshot.exists) {
-        await _database.clearHistory();
-        return;
-      }
-
-      final remoteHistory = _parseHistory(event.snapshot);
-      await _database.transactionRun(() async {
-        await _database.clearHistory();
-        await _database.upsertHistory(
-          remoteHistory.map(_historyToCompanion).toList(growable: false),
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppLogger.error(
+          'Players sync listener failed.',
+          name: 'sprint.repository',
+          error: error,
+          stackTrace: stackTrace,
         );
-      });
+      },
+    );
 
-      _setSyncState(
-        _syncStateValue.copyWith(lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch),
-      );
-    });
+    _historySubscription = historyRef.onValue.listen(
+      (event) async {
+        if (!event.snapshot.exists) {
+          await _database.clearHistory();
+          return;
+        }
 
-    _settingsSubscription = _settingsRef.onValue.listen((event) async {
-      final remoteKFactor = _parseKFactor(event.snapshot.value);
-      if (remoteKFactor == null) {
-        return;
-      }
-      await _persistKFactor(remoteKFactor);
-    });
+        final remoteHistory = _parseHistory(event.snapshot);
+        await _database.transactionRun(() async {
+          await _database.clearHistory();
+          await _database.upsertHistory(
+            remoteHistory.map(_historyToCompanion).toList(growable: false),
+          );
+        });
+
+        _setSyncState(
+          _syncStateValue.copyWith(
+            lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppLogger.error(
+          'History sync listener failed.',
+          name: 'sprint.repository',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
+
+    _settingsSubscription = settingsRef.onValue.listen(
+      (event) async {
+        final remoteKFactor = _parseKFactor(event.snapshot.value);
+        if (remoteKFactor == null) {
+          return;
+        }
+        await _persistKFactor(remoteKFactor);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        AppLogger.error(
+          'Settings sync listener failed.',
+          name: 'sprint.repository',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      },
+    );
   }
 
   Future<void> _pushToFirebase(
     List<models.Player> players,
     List<models.MatchHistoryEntry> history,
   ) async {
-    _setSyncState(_syncStateValue.copyWith(isSyncing: true));
-
-    try {
-      await _playersRef.set(players.map((player) => player.toJson()).toList(growable: false));
-      await _historyRef.set(history.map((entry) => entry.toJson()).toList(growable: false));
+    if (!_enableRemoteSync || _playersRef == null || _historyRef == null) {
       _setSyncState(
         models.SyncState(
           isSyncing: false,
           lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-    } catch (_) {
+      return;
+    }
+
+    final playersRef = _playersRef!;
+    final historyRef = _historyRef!;
+
+    _setSyncState(_syncStateValue.copyWith(isSyncing: true));
+    try {
+      await playersRef.set(
+        players.map((player) => player.toJson()).toList(growable: false),
+      );
+      await historyRef.set(
+        history.map((entry) => entry.toJson()).toList(growable: false),
+      );
+      _setSyncState(
+        models.SyncState(
+          isSyncing: false,
+          lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Failed to push leaderboard state to Firebase.',
+        name: 'sprint.repository',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _setSyncState(_syncStateValue.copyWith(isSyncing: false));
     }
   }
@@ -324,7 +424,7 @@ class SprintRepositoryImpl implements SprintRepository {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _loadSharedPreferences();
     await prefs.setInt(_keyEloKFactor, kFactor);
     await _database.setSetting(_settingKFactor, kFactor.toString());
 
@@ -341,7 +441,7 @@ class SprintRepositoryImpl implements SprintRepository {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _loadSharedPreferences();
     final persisted = prefs.getInt(_keyEloKFactor) ?? Defaults.eloK;
     _kFactorValue = Defaults.supportedEloKPresets.contains(persisted)
         ? persisted
@@ -352,10 +452,20 @@ class SprintRepositoryImpl implements SprintRepository {
   }
 
   Future<void> _pushKFactorToFirebase(int kFactor) async {
+    final settingsRef = _settingsRef;
+    if (!_enableRemoteSync || settingsRef == null) {
+      return;
+    }
+
     try {
-      await _settingsRef.set(<String, Object>{'kFactor': kFactor});
-    } catch (_) {
-      // Keep local source of truth intact even if push fails.
+      await settingsRef.set(<String, Object>{'kFactor': kFactor});
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Failed to push k-factor to Firebase.',
+        name: 'sprint.repository',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
