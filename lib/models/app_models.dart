@@ -785,6 +785,11 @@ class AppState {
     required this.profileBackScreen,
     required this.leaderboardSource,
     required this.localSessionState,
+    required this.standardSessionStrategy,
+    required this.standardSessionParticipantIds,
+    required this.standardSessionTargetMatchesPerPlayer,
+    required this.standardSessionCompletedMatchesByPlayerId,
+    required this.standardSessionScheduledMatchesByPlayerId,
     required this.deathMatchInProgress,
     required this.deathMatchLives,
     required this.deathMatchParticipantIds,
@@ -806,6 +811,11 @@ class AppState {
   final Screen profileBackScreen;
   final LeaderboardSource leaderboardSource;
   final LocalSessionState localSessionState;
+  final PairingStrategy? standardSessionStrategy;
+  final List<String> standardSessionParticipantIds;
+  final int standardSessionTargetMatchesPerPlayer;
+  final Map<String, int> standardSessionCompletedMatchesByPlayerId;
+  final Map<String, int> standardSessionScheduledMatchesByPlayerId;
   final bool deathMatchInProgress;
   final int deathMatchLives;
   final List<String> deathMatchParticipantIds;
@@ -817,10 +827,26 @@ class AppState {
 
   bool get isLocalClientMode {
     return leaderboardSource == LeaderboardSource.local &&
-        localSessionState.role == LocalSessionRole.client;
+        localSessionState.role == LocalSessionRole.client &&
+        localSessionState.phase == LocalSessionPhase.connected;
   }
 
   bool get isReadOnlyClientMode => isLocalClientMode;
+
+  bool get isStandardSession {
+    return standardSessionStrategy != null &&
+        standardSessionParticipantIds.length >= 2;
+  }
+
+  bool get isStandardSessionComplete {
+    if (!isStandardSession) {
+      return false;
+    }
+    final target = standardSessionTargetMatchesPerPlayer;
+    return standardSessionParticipantIds.every(
+      (id) => (standardSessionCompletedMatchesByPlayerId[id] ?? 0) >= target,
+    );
+  }
 
   AppState copyWith({
     List<Player>? players,
@@ -835,6 +861,12 @@ class AppState {
     Screen? profileBackScreen,
     LeaderboardSource? leaderboardSource,
     LocalSessionState? localSessionState,
+    PairingStrategy? standardSessionStrategy,
+    bool clearStandardSessionStrategy = false,
+    List<String>? standardSessionParticipantIds,
+    int? standardSessionTargetMatchesPerPlayer,
+    Map<String, int>? standardSessionCompletedMatchesByPlayerId,
+    Map<String, int>? standardSessionScheduledMatchesByPlayerId,
     bool? deathMatchInProgress,
     int? deathMatchLives,
     List<String>? deathMatchParticipantIds,
@@ -861,6 +893,20 @@ class AppState {
       profileBackScreen: profileBackScreen ?? this.profileBackScreen,
       leaderboardSource: leaderboardSource ?? this.leaderboardSource,
       localSessionState: localSessionState ?? this.localSessionState,
+      standardSessionStrategy: clearStandardSessionStrategy
+          ? null
+          : (standardSessionStrategy ?? this.standardSessionStrategy),
+      standardSessionParticipantIds:
+          standardSessionParticipantIds ?? this.standardSessionParticipantIds,
+      standardSessionTargetMatchesPerPlayer:
+          standardSessionTargetMatchesPerPlayer ??
+          this.standardSessionTargetMatchesPerPlayer,
+      standardSessionCompletedMatchesByPlayerId:
+          standardSessionCompletedMatchesByPlayerId ??
+          this.standardSessionCompletedMatchesByPlayerId,
+      standardSessionScheduledMatchesByPlayerId:
+          standardSessionScheduledMatchesByPlayerId ??
+          this.standardSessionScheduledMatchesByPlayerId,
       deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
       deathMatchLives: deathMatchLives ?? this.deathMatchLives,
       deathMatchParticipantIds:
@@ -895,6 +941,11 @@ class AppState {
       profileBackScreen: Screen.leaderboard,
       leaderboardSource: LeaderboardSource.db,
       localSessionState: LocalSessionState(),
+      standardSessionStrategy: null,
+      standardSessionParticipantIds: <String>[],
+      standardSessionTargetMatchesPerPlayer: 3,
+      standardSessionCompletedMatchesByPlayerId: <String, int>{},
+      standardSessionScheduledMatchesByPlayerId: <String, int>{},
       deathMatchInProgress: false,
       deathMatchLives: 2,
       deathMatchParticipantIds: <String>[],
@@ -924,6 +975,21 @@ class AppState {
             profileBackScreen == other.profileBackScreen &&
             leaderboardSource == other.leaderboardSource &&
             localSessionState == other.localSessionState &&
+            standardSessionStrategy == other.standardSessionStrategy &&
+            eq.equals(
+              standardSessionParticipantIds,
+              other.standardSessionParticipantIds,
+            ) &&
+            standardSessionTargetMatchesPerPlayer ==
+                other.standardSessionTargetMatchesPerPlayer &&
+            eq.equals(
+              standardSessionCompletedMatchesByPlayerId,
+              other.standardSessionCompletedMatchesByPlayerId,
+            ) &&
+            eq.equals(
+              standardSessionScheduledMatchesByPlayerId,
+              other.standardSessionScheduledMatchesByPlayerId,
+            ) &&
             deathMatchInProgress == other.deathMatchInProgress &&
             deathMatchLives == other.deathMatchLives &&
             eq.equals(
@@ -957,6 +1023,15 @@ class AppState {
     profileBackScreen,
     leaderboardSource,
     localSessionState,
+    standardSessionStrategy,
+    const DeepCollectionEquality().hash(standardSessionParticipantIds),
+    standardSessionTargetMatchesPerPlayer,
+    const DeepCollectionEquality().hash(
+      standardSessionCompletedMatchesByPlayerId,
+    ),
+    const DeepCollectionEquality().hash(
+      standardSessionScheduledMatchesByPlayerId,
+    ),
     deathMatchInProgress,
     deathMatchLives,
     const DeepCollectionEquality().hash(deathMatchParticipantIds),

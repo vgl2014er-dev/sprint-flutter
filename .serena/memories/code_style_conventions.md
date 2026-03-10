@@ -2,24 +2,34 @@
 
 ## Analyzer/Linting
 - Uses `flutter_lints` via `analysis_options.yaml`.
-- Prefer fixes that satisfy `flutter analyze` and existing lint rules.
+- Strictly follow `flutter_lints`. Resolve all issues reported by `flutter analyze`.
 
 ## Naming And Structure
-- `PascalCase` for classes/enums/widgets.
-- `lowerCamelCase` for variables, methods, and fields.
+- `PascalCase` for classes, enums, and widgets.
+- `camelCase` for variables, methods, and fields.
+- `snake_case` for file names.
 - Private members prefixed with `_`.
-- Uses feature-layered folders (`data/domain/models/platform/state/ui`).
+- Use feature-layered folders (`data/domain/models/platform/state/ui`).
+- Functions should be short (<20 lines) and single-purpose.
 
 ## State And Data Patterns
-- Riverpod providers declared near state orchestration.
-- App state is treated as immutable and updated with `copyWith`.
-- Collections are commonly typed explicitly (`<Type>[]`) and often created with `growable: false`.
+- **Riverpod**: Providers should be declared near state orchestration. Use `ConsumerWidget` or `Consumer` for UI.
+- **Immutability**: Treat app state as immutable. Use `copyWith` for updates.
+- **Data Handling**: Use `json_serializable` for JSON operations.
+- Prefer manual constructor dependency injection to make class dependencies explicit.
 
 ## Flutter/UI Patterns
-- Strong use of `const` constructors/widgets where possible.
-- Stateless/Consumer widgets compose screens; controller methods handle actions.
-- Material 3 theme and standard Flutter widget composition.
+- **Material 3**: Use Material 3 themes and standard widget composition.
+- **Const**: Use `const` constructors everywhere possible to reduce unnecessary rebuilds.
+- **Composition**: Favor composition over inheritance. Build complex UIs from smaller, reusable widgets.
+- **Layout**: Use `ListView.builder` for lists. Use `Expanded`/`Flexible` for responsive layouts.
+
+## Visual Design Standards (Desired)
+- **Typography**: Emphasize font sizes (hero text, section headlines) for better readability.
+- **Depth**: Use multi-layered drop shadows for cards to create a "lifted" feel.
+- **Interaction**: Buttons and interactive elements should have an elegant color-based "glow" effect.
+- **Tactile Feel**: Apply subtle noise textures to the main background for a premium feel (when supported).
 
 ## Async/Resource Handling
-- Uses `unawaited(...)` for fire-and-forget operations.
-- Stream subscriptions are tracked and cancelled in `dispose()`.
+- Use `unawaited(...)` for fire-and-forget operations.
+- Properly handle Stream subscriptions (track and cancel in `dispose()`).

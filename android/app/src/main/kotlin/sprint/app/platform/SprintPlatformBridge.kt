@@ -3,6 +3,7 @@ package sprint.app.platform
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.WindowManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -37,6 +38,7 @@ class SprintPlatformBridge(
     private val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var stateCollectionJob: Job? = null
     private var pendingNearbyAction: PendingNearbyAction? = null
+    private var immersiveShowStatusBar: Boolean = true
 
     private val nearbyPermissionLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -68,10 +70,25 @@ class SprintPlatformBridge(
         localController.useDatabaseMode()
     }
 
-    fun applyImmersiveMode() {
+    fun applyImmersiveMode(showStatusBar: Boolean = immersiveShowStatusBar) {
+        immersiveShowStatusBar = showStatusBar
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            activity.window.attributes = activity.window.attributes.apply {
+                layoutInDisplayCutoutMode = if (showStatusBar) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+        }
         WindowCompat.setDecorFitsSystemWindows(activity.window, false)
         WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply {
-            hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            hide(WindowInsetsCompat.Type.navigationBars())
+            if (showStatusBar) {
+                show(WindowInsetsCompat.Type.statusBars())
+            } else {
+                hide(WindowInsetsCompat.Type.statusBars())
+            }
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
@@ -128,7 +145,8 @@ class SprintPlatformBridge(
             }
 
             "setImmersiveMode" -> {
-                applyImmersiveMode()
+                val showStatusBar = call.argument<Boolean>("showStatusBar") ?: true
+                applyImmersiveMode(showStatusBar = showStatusBar)
                 result.success(null)
             }
 
@@ -370,3 +388,5 @@ class SprintPlatformBridge(
         private const val DEFAULT_ENDPOINT_NAME = "Sprint Device"
     }
 }
+
+

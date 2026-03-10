@@ -71,6 +71,29 @@ void main() {
       expect(controller.state.screen, Screen.leaderboard);
     });
 
+    test('unlocks navigation when local client disconnects', () async {
+      platform.emitLocalSession(
+        const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.connected,
+        ),
+      );
+      await flushState();
+      expect(controller.state.isReadOnlyClientMode, isTrue);
+
+      platform.emitLocalSession(
+        const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.disconnected,
+        ),
+      );
+      await flushState();
+
+      expect(controller.state.isReadOnlyClientMode, isFalse);
+      controller.navigateTo(Screen.playerList);
+      expect(controller.state.screen, Screen.playerList);
+    });
+
     test(
       'keeps snapshot while disconnected and falls back to db in db mode',
       () async {
@@ -124,6 +147,139 @@ void main() {
       expect(platform.useDbForLocalCalls, 1);
       expect(platform.startLocalHostingCalls, 1);
     });
+
+    test('scanning local hosts keeps setup flow on landing', () async {
+      expect(controller.state.screen, Screen.landing);
+
+      controller.scanLocalHosts('Sprint Device');
+      await flushState();
+
+      expect(controller.state.screen, Screen.landing);
+      expect(platform.scanLocalHostsCalls, 1);
+    });
+
+    test(
+      'enters fullscreen immersive mode when local client connects',
+      () async {
+        expect(platform.immersiveShowStatusBarCalls, <bool>[true]);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.client,
+            phase: LocalSessionPhase.connected,
+          ),
+        );
+        await flushState();
+
+        expect(platform.immersiveShowStatusBarCalls, <bool>[true, false]);
+      },
+    );
+
+    test('restores status bar immersive mode after local disconnect', () async {
+      platform.emitLocalSession(
+        const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.connected,
+        ),
+      );
+      await flushState();
+      expect(platform.immersiveShowStatusBarCalls, <bool>[true, false]);
+
+      platform.emitLocalSession(
+        const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.disconnected,
+        ),
+      );
+      await flushState();
+
+      expect(platform.immersiveShowStatusBarCalls, <bool>[true, false, true]);
+    });
+
+    test(
+      'generates standard session queue where everyone reaches target',
+      () async {
+        final started = controller.generateMatches(
+          const <String>{'a', 'b', 'c'},
+          PairingStrategy.random,
+          targetMatchesPerPlayer: 3,
+        );
+
+        expect(started, isTrue);
+        expect(controller.state.isStandardSession, isTrue);
+        expect(controller.state.standardSessionTargetMatchesPerPlayer, 3);
+        expect(
+          controller.state.standardSessionParticipantIds,
+          unorderedEquals(<String>['a', 'b', 'c']),
+        );
+        expect(controller.state.roundMatches, isNotEmpty);
+
+        for (final id in controller.state.standardSessionParticipantIds) {
+          expect(
+            controller.state.standardSessionScheduledMatchesByPlayerId[id] ?? 0,
+            greaterThanOrEqualTo(3),
+          );
+        }
+      },
+    );
+
+    test(
+      'recording standard session result updates contribution and index',
+      () async {
+        final started = controller.generateMatches(
+          const <String>{'a', 'b'},
+          PairingStrategy.elo,
+          targetMatchesPerPlayer: 2,
+        );
+        expect(started, isTrue);
+
+        final firstMatch = controller.state.roundMatches.first;
+        controller.startMatch(firstMatch.id);
+        controller.recordResult(firstMatch.id, MatchResult.draw);
+        await flushState();
+
+        expect(controller.state.currentMatchIndex, 1);
+        expect(
+          controller.state.standardSessionCompletedMatchesByPlayerId[firstMatch
+              .player1
+              .id],
+          1,
+        );
+        expect(
+          controller.state.standardSessionCompletedMatchesByPlayerId[firstMatch
+              .player2
+              .id],
+          1,
+        );
+      },
+    );
+
+    test(
+      'standard session does not auto-generate another queue when complete',
+      () async {
+        final started = controller.generateMatches(
+          const <String>{'a', 'b'},
+          PairingStrategy.random,
+          targetMatchesPerPlayer: 1,
+        );
+        expect(started, isTrue);
+        expect(controller.state.roundMatches.length, 1);
+
+        final onlyMatch = controller.state.roundMatches.single;
+        controller.startMatch(onlyMatch.id);
+        controller.recordResult(onlyMatch.id, MatchResult.p1);
+        await flushState();
+
+        expect(controller.state.isStandardSessionComplete, isTrue);
+
+        final beforeMatches = controller.state.roundMatches;
+        controller.startNextRound();
+        await flushState();
+
+        expect(controller.state.roundMatches, beforeMatches);
+        expect(controller.state.roundMatches.single.played, isTrue);
+      },
+    );
 
     test('resolves death match champion after elimination threshold', () async {
       final started = controller.startDeathMatch(
@@ -260,6 +416,8 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
 
   int useDbForLocalCalls = 0;
   int startLocalHostingCalls = 0;
+  int scanLocalHostsCalls = 0;
+  final List<bool> immersiveShowStatusBarCalls = <bool>[];
 
   @override
   Stream<LocalSessionState> get localSessionState =>
@@ -287,7 +445,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   Future<void> stopLocalHosting() async {}
 
   @override
-  Future<void> scanLocalHosts(String localEndpointName) async {}
+  Future<void> scanLocalHosts(String localEndpointName) async {
+    scanLocalHostsCalls += 1;
+  }
 
   @override
   Future<void> connectToLocalHost(String endpointId) async {}
@@ -312,7 +472,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   ) async {}
 
   @override
-  Future<void> setImmersiveMode() async {}
+  Future<void> setImmersiveMode({bool showStatusBar = true}) async {
+    immersiveShowStatusBarCalls.add(showStatusBar);
+  }
 
   @override
   void dispose() {

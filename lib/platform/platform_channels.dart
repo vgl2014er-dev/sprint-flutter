@@ -29,7 +29,7 @@ abstract class SprintPlatformAdapter {
 
   Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot);
 
-  Future<void> setImmersiveMode();
+  Future<void> setImmersiveMode({bool showStatusBar = true});
 
   void dispose();
 }
@@ -119,8 +119,11 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
   }
 
   @override
-  Future<void> setImmersiveMode() {
-    return _methodChannel.invokeMethod<void>('setImmersiveMode');
+  Future<void> setImmersiveMode({bool showStatusBar = true}) {
+    return _methodChannel.invokeMethod<void>(
+      'setImmersiveMode',
+      <String, Object?>{'showStatusBar': showStatusBar},
+    );
   }
 
   Future<void> _onMethodCall(MethodCall call) async {

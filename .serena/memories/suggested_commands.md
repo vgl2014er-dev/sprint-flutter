@@ -2,6 +2,7 @@
 
 ## Setup
 - `flutter pub get`
+- `scripts/install-all-devices.ps1` (to install on all connected devices)
 
 ## Run
 - `flutter run`

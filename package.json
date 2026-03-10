@@ -1,0 +1,24 @@
+{
+  "name": "sprint-device-tools",
+  "private": true,
+  "scripts": {
+    "android:install-all": "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1",
+    "android:install-all:release": "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1 -Release",
+    "android:rebuild-install-all": "powershell -ExecutionPolicy Bypass -File scripts/rebuild-install-all-devices.ps1",
+    "android:rebuild-install-all:release": "powershell -ExecutionPolicy Bypass -File scripts/rebuild-install-all-devices.ps1 -Release",
+    "mobile:flow:list-devices": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-00-list-devices.ps1",
+    "mobile:flow:host-connect": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-01-host-connect.ps1",
+    "mobile:flow:list-both": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-02-list-elements-both.ps1",
+    "mobile:flow:allow-location": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-03-allow-location.ps1",
+    "mobile:flow:allow-nearby": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-04-allow-nearby.ps1",
+    "mobile:flow:list-client": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-05-list-client-elements.ps1",
+    "mobile:flow:connect-accept": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-06-nearby-connect-and-dual-accept.ps1",
+    "mobile:flow:random:open": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-07-open-random-matches.ps1",
+    "mobile:flow:match:step": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/step-08-start-and-record-match.ps1",
+    "mobile:flow:random:cycles": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-random-match-cycles.ps1",
+    "mobile:flow:random:cycles:open": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-random-match-cycles.ps1 -OpenRandomMatches -TapHomeFirst -Cycles 1 -Result draw",
+    "mobile:flow:run": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1",
+    "mobile:flow:run:dry": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1 -DryRun",
+    "mobile:flow:run:pixel-host": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1 -HostDevice 31071FDH2008FK -ClientDevice DMIFHU7HUG9PKVVK -HostButtonX 203 -HostButtonY 1380 -ClientConnectButtonX 577 -ClientConnectButtonY 1607 -HostAllowLocationX 540 -HostAllowLocationY 1533 -ClientAllowLocationX 540 -ClientAllowLocationY 1464 -HostAllowNearbyX 540 -HostAllowNearbyY 1495 -ClientAllowNearbyX 540 -ClientAllowNearbyY 1293 -NearbyConnectX 787 -NearbyConnectY 2114 -HostAcceptX 218 -HostAcceptY 1737 -ClientAcceptX 250 -ClientAcceptY 2117"
+  }
+}
