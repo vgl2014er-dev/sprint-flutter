@@ -111,7 +111,7 @@ class MatchRunnerScreen extends StatelessWidget {
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: onBack,
-            child: Text(allPlayed ? 'View Leaderboard' : 'Go Back'),
+            child: Text(allPlayed ? 'View Home' : 'Go Home'),
           ),
         ],
       ),
@@ -141,8 +141,7 @@ class _StandardSessionCompleteState extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'All scheduled matches are finished. View Leaderboard to review results.',
-            textAlign: TextAlign.center,
+            'All scheduled matches are finished. View Home to continue.',
           ),
         ],
       ),
@@ -215,27 +214,36 @@ class _MatchCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 if (showStartOnly)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(112),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 24,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        textStyle: textTheme.displaySmall?.copyWith(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
+                  Column(
+                    children: <Widget>[
+                      _PreStartMatchup(
+                        player1Name: match.player1.name,
+                        player2Name: match.player2.name,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(112),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 24,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            textStyle: textTheme.displaySmall?.copyWith(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          onPressed: onStart,
+                          child: const Text('START'),
                         ),
                       ),
-                      onPressed: onStart,
-                      child: const Text('START'),
-                    ),
+                    ],
                   )
                 else ...<Widget>[
                   _ResultButton(
@@ -346,6 +354,54 @@ class _MatchCard extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _PreStartMatchup extends StatelessWidget {
+  const _PreStartMatchup({
+    required this.player1Name,
+    required this.player2Name,
+  });
+
+  final String player1Name;
+  final String player2Name;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: <Widget>[
+        Text(
+          player1Name.toUpperCase(),
+          textAlign: TextAlign.center,
+          style: textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'VS',
+          textAlign: TextAlign.center,
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: scheme.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          player2Name.toUpperCase(),
+          textAlign: TextAlign.center,
+          style: textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+            color: scheme.error,
+          ),
+        ),
+      ],
     );
   }
 }

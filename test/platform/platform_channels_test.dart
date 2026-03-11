@@ -51,7 +51,9 @@ void main() {
       final emissions = <String>[];
       final completer = Completer<void>();
       final subscription = adapter.localSessionState.listen((session) {
-        emissions.add('${session.role.toWire()}:${session.phase.toWire()}');
+        emissions.add(
+          '${session.role.toWire()}:${session.phase.toWire()}:${session.connectionMedium.toWire()}',
+        );
         if (!completer.isCompleted) {
           completer.complete();
         }
@@ -60,13 +62,17 @@ void main() {
       await adapter.handleMethodCallForTest(
         const MethodCall('onPlatformEvent', <String, Object?>{
           'type': 'local_session_state',
-          'data': <String, Object?>{'role': 'client', 'phase': 'connected'},
+          'data': <String, Object?>{
+            'role': 'client',
+            'phase': 'connected',
+            'connectionMedium': 'wifi',
+          },
         }),
       );
 
       await completer.future.timeout(const Duration(seconds: 2));
       await subscription.cancel();
-      expect(emissions, <String>['client:connected']);
+      expect(emissions, <String>['client:connected:wifi']);
     });
 
     test('publishes platform error events', () async {

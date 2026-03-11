@@ -19,4 +19,10 @@ void main() {
       expect(LeaderboardSource.fromWire(source.toWire()), source);
     }
   });
+
+  test('local connection medium wire values round-trip', () {
+    for (final medium in LocalConnectionMedium.values) {
+      expect(LocalConnectionMedium.fromWire(medium.toWire()), medium);
+    }
+  });
 }

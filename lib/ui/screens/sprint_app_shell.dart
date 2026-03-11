@@ -20,13 +20,30 @@ import 'settings_screen.dart';
 
 final AudioPlayer _startBeepPlayer = AudioPlayer()
   ..setReleaseMode(ReleaseMode.stop);
+final Future<void> _startBeepPreload = _preloadStartBeep();
+
+Future<void> _preloadStartBeep() async {
+  try {
+    await _startBeepPlayer.setSource(AssetSource('assets/sounds/beeps/start.wav'));
+  } catch (_) {
+    // Ignore preload failures and fall back to direct play.
+  }
+}
 
 Future<void> _playStartBeep() async {
   try {
-    await _startBeepPlayer.stop();
-    await _startBeepPlayer.play(AssetSource('audio/start_beep.mp3'));
+    await _startBeepPreload;
+    await _startBeepPlayer.seek(Duration.zero);
+    await _startBeepPlayer.resume();
   } catch (_) {
-    // Ignore playback failures so match flow is never blocked by audio.
+    try {
+      await _startBeepPlayer.play(
+        AssetSource('assets/sounds/beeps/start.wav'),
+        mode: PlayerMode.lowLatency,
+      );
+    } catch (_) {
+      // Ignore playback failures so match flow is never blocked by audio.
+    }
   }
 }
 
@@ -142,7 +159,7 @@ class SprintApp extends ConsumerWidget {
             ),
             Screen.matchRunner => MatchRunnerScreen(
               state: state,
-              onBack: () => controller.finishRound(Screen.leaderboard),
+              onBack: controller.closeRoundToLanding,
               onClose: controller.closeRoundToLanding,
               onNextRound: controller.startNextRound,
               onStart: (matchId) {

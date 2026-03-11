@@ -9,3 +9,28 @@ script = ""
 name = "Run"
 icon = "run"
 command = "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1"
+
+[[actions]]
+name = "Rebuild + Run Debug"
+icon = "run"
+command = "powershell -ExecutionPolicy Bypass -File scripts/rebuild-install-all-devices.ps1"
+
+[[actions]]
+name = "Run Release"
+icon = "run"
+command = "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1 -Release"
+
+[[actions]]
+name = "Rebuild + Run Release"
+icon = "run"
+command = "powershell -ExecutionPolicy Bypass -File scripts/rebuild-install-all-devices.ps1 -Release"
+
+[[actions]]
+name = "Mode Tests"
+icon = "run"
+command = "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1"
+
+[[actions]]
+name = "Mode Tests + Local"
+icon = "run"
+command = "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1 -IncludeLocalMode"

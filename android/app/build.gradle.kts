@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "sprint.app"
+    namespace = "elo.flutter"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "sprint.app"
+        applicationId = "elo.flutter"
         minSdk = 29
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

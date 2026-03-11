@@ -76,7 +76,7 @@ function Find-MobileElementsByLabel {
             } |
             Sort-Object @{ Expression = { [int]$_.coordinates.y } }, @{ Expression = { [int]$_.coordinates.x } }
     )
-    return ,$results
+    return $results
 }
 
 function Find-MobileElementByLabel {

@@ -59,7 +59,7 @@ void main() {
     );
   }
 
-  testWidgets('shows only START before match begins', (
+  testWidgets('shows matchup names and START before match begins', (
     WidgetTester tester,
   ) async {
     final match = UiRoundMatch(
@@ -73,9 +73,13 @@ void main() {
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
 
     expect(find.widgetWithText(ElevatedButton, 'START'), findsOneWidget);
+    expect(find.text('ALICE'), findsOneWidget);
+    expect(find.text('VS'), findsOneWidget);
+    expect(find.text('BOB'), findsOneWidget);
     expect(find.text('ALICE WINS'), findsNothing);
     expect(find.text('BOB WINS'), findsNothing);
     expect(find.text('DRAW'), findsNothing);
+    expect(find.widgetWithText(ElevatedButton, 'Go Home'), findsOneWidget);
   });
 
   testWidgets('shows result choices and hides START after match begins', (
@@ -97,7 +101,7 @@ void main() {
     expect(find.text('DRAW'), findsOneWidget);
   });
 
-  testWidgets('returns to START-only view for next unstarted match', (
+  testWidgets('returns to matchup+START view for next unstarted match', (
     WidgetTester tester,
   ) async {
     final firstMatch = UiRoundMatch(
@@ -123,12 +127,16 @@ void main() {
     );
 
     expect(find.widgetWithText(ElevatedButton, 'START'), findsOneWidget);
+    expect(find.text('CHRIS'), findsOneWidget);
+    expect(find.text('VS'), findsOneWidget);
+    expect(find.text('DREW'), findsOneWidget);
     expect(find.text('CHRIS WINS'), findsNothing);
     expect(find.text('DREW WINS'), findsNothing);
     expect(find.text('DRAW'), findsNothing);
+    expect(find.widgetWithText(ElevatedButton, 'Go Home'), findsOneWidget);
   });
 
-  testWidgets('centers START button in match card before begin', (
+  testWidgets('places matchup block above START button before begin', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1080, 2400);
@@ -148,13 +156,14 @@ void main() {
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
 
-    final cardRect = tester.getRect(find.byType(Card).first);
-    final startCenter = tester.getCenter(
+    final startRect = tester.getRect(
       find.widgetWithText(ElevatedButton, 'START'),
     );
+    final p1Rect = tester.getRect(find.text('ALICE'));
+    final p2Rect = tester.getRect(find.text('BOB'));
 
-    expect((startCenter.dx - cardRect.center.dx).abs(), lessThan(48));
-    expect((startCenter.dy - cardRect.center.dy).abs(), lessThan(64));
+    expect(p1Rect.bottom, lessThan(startRect.top));
+    expect(p2Rect.bottom, lessThan(startRect.top));
   });
 
   testWidgets('uses a much larger START button', (WidgetTester tester) async {
@@ -287,6 +296,11 @@ void main() {
       find.textContaining('All scheduled matches are finished'),
       findsOneWidget,
     );
+    expect(
+      find.text('All scheduled matches are finished. View Home to continue.'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(ElevatedButton, 'View Home'), findsOneWidget);
     expect(nextRoundCalls, 0);
   });
 

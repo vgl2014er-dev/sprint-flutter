@@ -11,15 +11,20 @@ void main() {
   AppState stateWithPlayers(
     List<Player> players, {
     bool readOnlyClient = false,
+    List<MatchHistoryEntry> history = const <MatchHistoryEntry>[],
+    LocalSessionState? localSessionStateOverride,
   }) {
-    final localSessionState = readOnlyClient
-        ? const LocalSessionState(
-            role: LocalSessionRole.client,
-            phase: LocalSessionPhase.connected,
-          )
-        : const LocalSessionState();
+    final localSessionState =
+        localSessionStateOverride ??
+        (readOnlyClient
+            ? const LocalSessionState(
+                role: LocalSessionRole.client,
+                phase: LocalSessionPhase.connected,
+              )
+            : const LocalSessionState());
     return AppState.initial().copyWith(
       players: players,
+      history: history,
       leaderboardSource: readOnlyClient
           ? LeaderboardSource.local
           : LeaderboardSource.db,
@@ -63,6 +68,44 @@ void main() {
     expect(find.text('PLAYER'), findsOneWidget);
     expect(find.text('ELO'), findsOneWidget);
     expect(find.text('WIN %'), findsOneWidget);
+  });
+
+  testWidgets('shows connected transport badge in leaderboard header', (
+    WidgetTester tester,
+  ) async {
+    await pumpLeaderboard(
+      tester,
+      state: stateWithPlayers(
+        <Player>[player('p1', name: 'Alpha', elo: 1200)],
+        localSessionStateOverride: const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.connected,
+          connectionMedium: LocalConnectionMedium.wifi,
+        ),
+      ),
+      onViewProfile: (_) {},
+    );
+
+    expect(find.text('WiFi'), findsOneWidget);
+  });
+
+  testWidgets('hides transport badge when not connected', (
+    WidgetTester tester,
+  ) async {
+    await pumpLeaderboard(
+      tester,
+      state: stateWithPlayers(
+        <Player>[player('p1', name: 'Alpha', elo: 1200)],
+        localSessionStateOverride: const LocalSessionState(
+          role: LocalSessionRole.client,
+          phase: LocalSessionPhase.disconnected,
+          connectionMedium: LocalConnectionMedium.wifi,
+        ),
+      ),
+      onViewProfile: (_) {},
+    );
+
+    expect(find.text('WiFi'), findsNothing);
   });
 
   testWidgets('uses token header background and theme row background', (
@@ -183,6 +226,235 @@ void main() {
     );
 
     expect(find.text('83%'), findsOneWidget);
+  });
+
+  testWidgets('uses newest timestamp match for delta and highlights', (
+    WidgetTester tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpLeaderboard(
+        tester,
+        state: stateWithPlayers(
+          <Player>[
+            player('p1', name: 'Alpha', elo: 1210),
+            player('p2', name: 'Bravo', elo: 1250),
+            player('p3', name: 'Charlie', elo: 1180),
+          ],
+          history: <MatchHistoryEntry>[
+            historyEntry(
+              id: 'm-old',
+              p1Id: 'p1',
+              p2Id: 'p2',
+              p1Name: 'Alpha',
+              p2Name: 'Bravo',
+              p1EloBefore: 1200,
+              p2EloBefore: 1260,
+              p1EloAfter: 1210,
+              p2EloAfter: 1250,
+              result: MatchResult.p1,
+              timestamp: 100,
+            ),
+            historyEntry(
+              id: 'm-latest',
+              p1Id: 'p2',
+              p2Id: 'p3',
+              p1Name: 'Bravo',
+              p2Name: 'Charlie',
+              p1EloBefore: 1245,
+              p2EloBefore: 1185,
+              p1EloAfter: 1250,
+              p2EloAfter: 1180,
+              result: MatchResult.p1,
+              timestamp: 200,
+            ),
+            historyEntry(
+              id: 'm-mid',
+              p1Id: 'p1',
+              p2Id: 'p3',
+              p1Name: 'Alpha',
+              p2Name: 'Charlie',
+              p1EloBefore: 1200,
+              p2EloBefore: 1190,
+              p1EloAfter: 1210,
+              p2EloAfter: 1180,
+              result: MatchResult.p1,
+              timestamp: 150,
+            ),
+          ],
+        ),
+        onViewProfile: (_) {},
+      );
+
+      expect(
+        find.byKey(const Key('leaderboard-highlight-row-p2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('leaderboard-highlight-row-p3')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('leaderboard-highlight-row-p1')),
+        findsNothing,
+      );
+      expect(
+        find.bySemanticsLabel('leaderboard_highlight_row_p2'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('leaderboard_highlight_row_p3'),
+        findsOneWidget,
+      );
+
+      final p2Delta = find.byKey(const Key('leaderboard-elo-delta-p2'));
+      final p3Delta = find.byKey(const Key('leaderboard-elo-delta-p3'));
+      expect(p2Delta, findsOneWidget);
+      expect(p3Delta, findsOneWidget);
+      expect(
+        find.bySemanticsLabel('leaderboard_elo_delta_p2_positive_5'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('leaderboard_elo_delta_p3_negative_5'),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: p2Delta, matching: find.text('+5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: p3Delta, matching: find.text('-5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: p2Delta,
+          matching: find.byIcon(Icons.arrow_upward_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: p3Delta,
+          matching: find.byIcon(Icons.arrow_downward_rounded),
+        ),
+        findsOneWidget,
+      );
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('shows neutral zero delta without direction arrow', (
+    WidgetTester tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpLeaderboard(
+        tester,
+        state: stateWithPlayers(
+          <Player>[
+            player('p1', name: 'Zero One', elo: 1200),
+            player('p2', name: 'Zero Two', elo: 1200),
+          ],
+          history: <MatchHistoryEntry>[
+            historyEntry(
+              id: 'm-zero',
+              p1Id: 'p1',
+              p2Id: 'p2',
+              p1Name: 'Zero One',
+              p2Name: 'Zero Two',
+              p1EloBefore: 1200,
+              p2EloBefore: 1200,
+              p1EloAfter: 1200,
+              p2EloAfter: 1200,
+              result: MatchResult.draw,
+              timestamp: 300,
+            ),
+          ],
+        ),
+        onViewProfile: (_) {},
+      );
+
+      final p1Delta = find.byKey(const Key('leaderboard-elo-delta-p1'));
+      final p2Delta = find.byKey(const Key('leaderboard-elo-delta-p2'));
+      expect(p1Delta, findsOneWidget);
+      expect(p2Delta, findsOneWidget);
+      expect(
+        find.bySemanticsLabel('leaderboard_elo_delta_p1_neutral_0'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('leaderboard_elo_delta_p2_neutral_0'),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: p1Delta, matching: find.text('0')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: p2Delta, matching: find.text('0')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: p1Delta,
+          matching: find.byIcon(Icons.arrow_upward_rounded),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: p1Delta,
+          matching: find.byIcon(Icons.arrow_downward_rounded),
+        ),
+        findsNothing,
+      );
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets(
+    'forces connected-display layout to fit players without scrolling',
+    (WidgetTester tester) async {
+      const size = Size(360, 420);
+      final manyPlayers = List<Player>.generate(
+        24,
+        (index) => player('p$index', name: 'P$index', elo: 2000 - index),
+      );
+      await pumpLeaderboard(
+        tester,
+        size: size,
+        state: stateWithPlayers(manyPlayers, readOnlyClient: true),
+        onViewProfile: (_) {},
+      );
+
+      expect(find.byType(ListView), findsNothing);
+      expect(find.byType(FittedBox), findsOneWidget);
+      final lastBottom = tester.getBottomLeft(find.text('P23')).dy;
+      final viewportHeight = tester.getSize(find.byType(Scaffold)).height;
+      expect(lastBottom, lessThanOrEqualTo(viewportHeight));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('keeps default leaderboard mode scrollable', (
+    WidgetTester tester,
+  ) async {
+    final players = List<Player>.generate(
+      24,
+      (index) => player('p$index', name: 'Player $index', elo: 2000 - index),
+    );
+    await pumpLeaderboard(
+      tester,
+      state: stateWithPlayers(players),
+      onViewProfile: (_) {},
+    );
+
+    expect(find.byType(ListView), findsOneWidget);
+    expect(find.byType(FittedBox), findsNothing);
   });
 
   testWidgets('uses grey for rank elo win and black for player name', (

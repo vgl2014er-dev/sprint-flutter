@@ -32,4 +32,13 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/audio/start_beep.mp3
+    - assets/sounds/beeps/start.wav
+    - assets/sounds/beeps/beep_electronic.wav
+    - assets/sounds/beeps/beep_buzzer.wav
+    - assets/sounds/beeps/beep_sine.wav
+    - assets/sounds/beeps/beep_gamestart.wav
+    - assets/sounds/beeps/beep_gamestart2.wav
+    - assets/sounds/beeps/beep_b1_improved.wav
+    - assets/sounds/beeps/beep_b1_loud.wav
+    - assets/sounds/beeps/beep_b1_normalized.wav
+    - assets/sounds/beeps/beep_b1_max.wav

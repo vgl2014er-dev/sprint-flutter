@@ -36,5 +36,5 @@ class AppLogger {
     );
   }
 
-  static const String _defaultName = 'sprint.app';
+  static const String _defaultName = 'elo.flutter';
 }

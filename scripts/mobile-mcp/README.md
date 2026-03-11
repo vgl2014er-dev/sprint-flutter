@@ -19,6 +19,43 @@ Override with `-HostDevice` and `-ClientDevice` in any step script.
 - `step-07-open-random-matches.ps1`
 - `step-08-start-and-record-match.ps1`
 
+## Mode test scripts
+- `test-theme-mode.ps1`
+- `test-random-mode.ps1`
+- `test-elo-mode.ps1`
+- `test-death-match-mode.ps1`
+- `test-local-mode.ps1`
+- `run-mode-tests.ps1`
+
+Run all single-device mode tests:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1 `
+  -Device "DMIFHU7HUG9PKVVK"
+```
+
+Run all mode tests including local host/client:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1 `
+  -Device "DMIFHU7HUG9PKVVK" `
+  -IncludeLocalMode `
+  -HostDevice "DMIFHU7HUG9PKVVK" `
+  -ClientDevice "31071FDH2008FK"
+```
+
+Run one mode test:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-elo-mode.ps1 `
+  -Device "DMIFHU7HUG9PKVVK"
+```
+
+Dry-run any mode test:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1 `
+  -Device "DMIFHU7HUG9PKVVK" `
+  -IncludeLocalMode `
+  -DryRun
+```
+
 ## Recurring random-match flow
 Start a random-match run (landing -> random card -> generate -> START -> result):
 ```powershell

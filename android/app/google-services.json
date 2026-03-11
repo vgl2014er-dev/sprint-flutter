@@ -1,22 +1,60 @@
 {
   "project_info": {
-    "project_number": "561684551619",
-    "firebase_url": "https://bucket-1ede1-default-rtdb.europe-west1.firebasedatabase.app",
-    "project_id": "bucket-1ede1",
-    "storage_bucket": "bucket-1ede1.firebasestorage.app"
+    "project_number": "887189087092",
+    "firebase_url": "https://sprint-app-10419-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "sprint-app-10419",
+    "storage_bucket": "sprint-app-10419.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:561684551619:android:60be1a0d15172c64700f76",
+        "mobilesdk_app_id": "1:887189087092:android:4b3f6bd8d10518d9e4c221",
         "android_client_info": {
-          "package_name": "sprint.app"
+          "package_name": "elo.flutter"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBFs34UY6Jm-cbcyNDj-0WM3zSBC3KG4ak"
+          "current_key": "AIzaSyBQcxNZ5UAwqOIZqW5RSlRF4ZNhv6BEJpk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:887189087092:android:c42a02bda2ab8271e4c221",
+        "android_client_info": {
+          "package_name": "elo.webview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQcxNZ5UAwqOIZqW5RSlRF4ZNhv6BEJpk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:887189087092:android:ed48d0133f5f5936e4c221",
+        "android_client_info": {
+          "package_name": "native.elo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQcxNZ5UAwqOIZqW5RSlRF4ZNhv6BEJpk"
         }
       ],
       "services": {

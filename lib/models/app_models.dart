@@ -240,6 +240,39 @@ enum LocalSessionPhase {
   }
 }
 
+enum LocalConnectionMedium {
+  unknown,
+  ble,
+  bt,
+  wifi;
+
+  String toWire() {
+    switch (this) {
+      case LocalConnectionMedium.unknown:
+        return 'unknown';
+      case LocalConnectionMedium.ble:
+        return 'ble';
+      case LocalConnectionMedium.bt:
+        return 'bt';
+      case LocalConnectionMedium.wifi:
+        return 'wifi';
+    }
+  }
+
+  static LocalConnectionMedium fromWire(String? value) {
+    switch (value) {
+      case 'ble':
+        return LocalConnectionMedium.ble;
+      case 'bt':
+        return LocalConnectionMedium.bt;
+      case 'wifi':
+        return LocalConnectionMedium.wifi;
+      default:
+        return LocalConnectionMedium.unknown;
+    }
+  }
+}
+
 class Player {
   const Player({
     required this.id,
@@ -587,6 +620,7 @@ class LocalSessionState {
   const LocalSessionState({
     this.role = LocalSessionRole.none,
     this.phase = LocalSessionPhase.idle,
+    this.connectionMedium = LocalConnectionMedium.unknown,
     this.discoveredHosts = const <DiscoveredHost>[],
     this.pendingConnectionName,
     this.connectedHostName,
@@ -598,6 +632,7 @@ class LocalSessionState {
 
   final LocalSessionRole role;
   final LocalSessionPhase phase;
+  final LocalConnectionMedium connectionMedium;
   final List<DiscoveredHost> discoveredHosts;
   final String? pendingConnectionName;
   final String? connectedHostName;
@@ -609,6 +644,7 @@ class LocalSessionState {
   LocalSessionState copyWith({
     LocalSessionRole? role,
     LocalSessionPhase? phase,
+    LocalConnectionMedium? connectionMedium,
     List<DiscoveredHost>? discoveredHosts,
     String? pendingConnectionName,
     bool clearPendingConnectionName = false,
@@ -626,6 +662,7 @@ class LocalSessionState {
     return LocalSessionState(
       role: role ?? this.role,
       phase: phase ?? this.phase,
+      connectionMedium: connectionMedium ?? this.connectionMedium,
       discoveredHosts: discoveredHosts ?? this.discoveredHosts,
       pendingConnectionName: clearPendingConnectionName
           ? null
@@ -650,6 +687,7 @@ class LocalSessionState {
     return <String, Object?>{
       'role': role.toWire(),
       'phase': phase.toWire(),
+      'connectionMedium': connectionMedium.toWire(),
       'discoveredHosts': discoveredHosts
           .map((host) => host.toJson())
           .toList(growable: false),
@@ -667,6 +705,9 @@ class LocalSessionState {
     return LocalSessionState(
       role: LocalSessionRole.fromWire(json['role']?.toString()),
       phase: LocalSessionPhase.fromWire(json['phase']?.toString()),
+      connectionMedium: LocalConnectionMedium.fromWire(
+        json['connectionMedium']?.toString(),
+      ),
       discoveredHosts: discoveredHostsRaw
           .map(
             (item) =>
@@ -691,6 +732,7 @@ class LocalSessionState {
         other is LocalSessionState &&
             role == other.role &&
             phase == other.phase &&
+            connectionMedium == other.connectionMedium &&
             eq.equals(discoveredHosts, other.discoveredHosts) &&
             pendingConnectionName == other.pendingConnectionName &&
             connectedHostName == other.connectedHostName &&
@@ -705,6 +747,7 @@ class LocalSessionState {
     return Object.hash(
       role,
       phase,
+      connectionMedium,
       const DeepCollectionEquality().hash(discoveredHosts),
       pendingConnectionName,
       connectedHostName,

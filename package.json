@@ -1,7 +1,9 @@
 {
   "name": "sprint-device-tools",
   "private": true,
+  "type": "module",
   "scripts": {
+    "audio:generate-beeps": "node scripts/audio/generate-sprint-beeps.mjs",
     "android:install-all": "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1",
     "android:install-all:release": "powershell -ExecutionPolicy Bypass -File scripts/install-all-devices.ps1 -Release",
     "android:rebuild-install-all": "powershell -ExecutionPolicy Bypass -File scripts/rebuild-install-all-devices.ps1",
@@ -19,6 +21,16 @@
     "mobile:flow:random:cycles:open": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-random-match-cycles.ps1 -OpenRandomMatches -TapHomeFirst -Cycles 1 -Result draw",
     "mobile:flow:run": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1",
     "mobile:flow:run:dry": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1 -DryRun",
-    "mobile:flow:run:pixel-host": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1 -HostDevice 31071FDH2008FK -ClientDevice DMIFHU7HUG9PKVVK -HostButtonX 203 -HostButtonY 1380 -ClientConnectButtonX 577 -ClientConnectButtonY 1607 -HostAllowLocationX 540 -HostAllowLocationY 1533 -ClientAllowLocationX 540 -ClientAllowLocationY 1464 -HostAllowNearbyX 540 -HostAllowNearbyY 1495 -ClientAllowNearbyX 540 -ClientAllowNearbyY 1293 -NearbyConnectX 787 -NearbyConnectY 2114 -HostAcceptX 218 -HostAcceptY 1737 -ClientAcceptX 250 -ClientAcceptY 2117"
+    "mobile:flow:run:pixel-host": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-end-to-end.ps1 -HostDevice 31071FDH2008FK -ClientDevice DMIFHU7HUG9PKVVK -HostButtonX 203 -HostButtonY 1380 -ClientConnectButtonX 577 -ClientConnectButtonY 1607 -HostAllowLocationX 540 -HostAllowLocationY 1533 -ClientAllowLocationX 540 -ClientAllowLocationY 1464 -HostAllowNearbyX 540 -HostAllowNearbyY 1495 -ClientAllowNearbyX 540 -ClientAllowNearbyY 1293 -NearbyConnectX 787 -NearbyConnectY 2114 -HostAcceptX 218 -HostAcceptY 1737 -ClientAcceptX 250 -ClientAcceptY 2117",
+    "mobile:test:modes": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1",
+    "mobile:test:modes:local": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/run-mode-tests.ps1 -IncludeLocalMode",
+    "mobile:test:theme": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-theme-mode.ps1",
+    "mobile:test:random": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-random-mode.ps1",
+    "mobile:test:elo": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-elo-mode.ps1",
+    "mobile:test:death": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-death-match-mode.ps1",
+    "mobile:test:local": "powershell -ExecutionPolicy Bypass -File scripts/mobile-mcp/test-local-mode.ps1"
+  },
+  "devDependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.38.0"
   }
 }
