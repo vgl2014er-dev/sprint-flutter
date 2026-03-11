@@ -87,8 +87,9 @@ class PairingEngine {
       final candidates = sorted.take(sorted.length - 1).toList(growable: false);
       if (candidates.isNotEmpty) {
         candidates.sort((left, right) {
-          final byDistance =
-              (left.elo - lastPlayer.elo).abs().compareTo((right.elo - lastPlayer.elo).abs());
+          final byDistance = (left.elo - lastPlayer.elo).abs().compareTo(
+            (right.elo - lastPlayer.elo).abs(),
+          );
           if (byDistance != 0) {
             return byDistance;
           }

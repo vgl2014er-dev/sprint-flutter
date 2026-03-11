@@ -23,7 +23,9 @@ class HeadToHeadCalculator {
         .length;
     final draws = h2h.where((entry) => entry.result == MatchResult.draw).length;
     final losses = h2h.length - wins - draws;
-    final winRatePercent = h2h.isEmpty ? 0 : ((wins / h2h.length) * 100).toInt();
+    final winRatePercent = h2h.isEmpty
+        ? 0
+        : ((wins / h2h.length) * 100).toInt();
 
     return HeadToHeadSummary(
       matches: h2h.length,

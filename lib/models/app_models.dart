@@ -136,6 +136,29 @@ enum LeaderboardSource {
   }
 }
 
+enum AppThemePreference {
+  light,
+  dark;
+
+  String toWire() {
+    switch (this) {
+      case AppThemePreference.light:
+        return 'light';
+      case AppThemePreference.dark:
+        return 'dark';
+    }
+  }
+
+  static AppThemePreference fromWire(String? value) {
+    switch (value) {
+      case 'dark':
+        return AppThemePreference.dark;
+      default:
+        return AppThemePreference.light;
+    }
+  }
+}
+
 enum LocalSessionRole {
   none,
   host,
@@ -784,6 +807,7 @@ class AppState {
     required this.selectedPlayerId,
     required this.profileBackScreen,
     required this.leaderboardSource,
+    required this.themePreference,
     required this.localSessionState,
     required this.standardSessionStrategy,
     required this.standardSessionParticipantIds,
@@ -810,6 +834,7 @@ class AppState {
   final String? selectedPlayerId;
   final Screen profileBackScreen;
   final LeaderboardSource leaderboardSource;
+  final AppThemePreference themePreference;
   final LocalSessionState localSessionState;
   final PairingStrategy? standardSessionStrategy;
   final List<String> standardSessionParticipantIds;
@@ -860,6 +885,7 @@ class AppState {
     bool clearSelectedPlayerId = false,
     Screen? profileBackScreen,
     LeaderboardSource? leaderboardSource,
+    AppThemePreference? themePreference,
     LocalSessionState? localSessionState,
     PairingStrategy? standardSessionStrategy,
     bool clearStandardSessionStrategy = false,
@@ -892,6 +918,7 @@ class AppState {
           : (selectedPlayerId ?? this.selectedPlayerId),
       profileBackScreen: profileBackScreen ?? this.profileBackScreen,
       leaderboardSource: leaderboardSource ?? this.leaderboardSource,
+      themePreference: themePreference ?? this.themePreference,
       localSessionState: localSessionState ?? this.localSessionState,
       standardSessionStrategy: clearStandardSessionStrategy
           ? null
@@ -940,6 +967,7 @@ class AppState {
       selectedPlayerId: null,
       profileBackScreen: Screen.leaderboard,
       leaderboardSource: LeaderboardSource.db,
+      themePreference: AppThemePreference.light,
       localSessionState: LocalSessionState(),
       standardSessionStrategy: null,
       standardSessionParticipantIds: <String>[],
@@ -974,6 +1002,7 @@ class AppState {
             selectedPlayerId == other.selectedPlayerId &&
             profileBackScreen == other.profileBackScreen &&
             leaderboardSource == other.leaderboardSource &&
+            themePreference == other.themePreference &&
             localSessionState == other.localSessionState &&
             standardSessionStrategy == other.standardSessionStrategy &&
             eq.equals(
@@ -1022,6 +1051,7 @@ class AppState {
     selectedPlayerId,
     profileBackScreen,
     leaderboardSource,
+    themePreference,
     localSessionState,
     standardSessionStrategy,
     const DeepCollectionEquality().hash(standardSessionParticipantIds),

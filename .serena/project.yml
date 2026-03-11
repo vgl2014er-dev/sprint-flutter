@@ -1,5 +1,5 @@
 # the name by which the project can be referenced within Serena
-project_name: "sprint"
+project_name: "sprint-theme-full-sweep"
 
 
 # list of languages for which language servers are started; choose from:
@@ -26,7 +26,7 @@ project_name: "sprint"
 # The first language is the default language and the respective language server will be used as a fallback.
 # Note that when using the JetBrains backend, language servers are not used and this list is correspondingly ignored.
 languages:
-- kotlin
+- dart
 
 # the encoding used by text files in the project
 # For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
