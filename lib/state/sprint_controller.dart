@@ -30,7 +30,6 @@ final sprintControllerProvider =
         repository: ref.watch(sprintRepositoryProvider),
         platformChannels: ref.watch(platformChannelsProvider),
       );
-      ref.onDispose(controller.dispose);
       return controller;
     });
 
@@ -58,6 +57,10 @@ class SprintController extends StateNotifier<AppState> {
         _dbKFactor = value;
         _refreshProjectedData();
       }),
+      _repository.themePreference.listen((value) {
+        _dbThemePreference = value;
+        _refreshProjectedData();
+      }),
       _platformChannels.localSessionState.listen(_onLocalSessionState),
       _platformChannels.localSnapshot.listen((value) {
         _localSnapshot = value;
@@ -79,6 +82,7 @@ class SprintController extends StateNotifier<AppState> {
   List<MatchHistoryEntry> _dbHistory = <MatchHistoryEntry>[];
   SyncState _dbSyncState = const SyncState();
   int _dbKFactor = Defaults.eloK;
+  AppThemePreference _dbThemePreference = AppThemePreference.light;
 
   LocalLeaderboardSnapshot? _localSnapshot;
   PairingStrategy _currentPairingStrategy = PairingStrategy.random;
@@ -313,6 +317,17 @@ class SprintController extends StateNotifier<AppState> {
     _runRepositoryWrite(
       () => _repository.setKFactor(kFactor),
       action: 'setKFactor',
+    );
+  }
+
+  void toggleThemePreference() {
+    final next = switch (state.themePreference) {
+      AppThemePreference.light => AppThemePreference.dark,
+      AppThemePreference.dark => AppThemePreference.light,
+    };
+    _runRepositoryWrite(
+      () => _repository.setThemePreference(next),
+      action: 'setThemePreference',
     );
   }
 
@@ -895,6 +910,7 @@ class SprintController extends StateNotifier<AppState> {
       history: _dbHistory,
       syncState: projectedSync,
       kFactor: projectedKFactor,
+      themePreference: _dbThemePreference,
     );
 
     _publishHostedSnapshots();

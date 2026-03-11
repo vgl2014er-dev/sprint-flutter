@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/models/app_models.dart';
 import 'package:sprint/ui/screens/sprint_app.dart';
+import 'package:sprint/ui/theme/app_theme.dart';
+import 'package:sprint/ui/theme/sprint_theme_tokens.dart';
 
 import '../test_helpers.dart';
 
@@ -39,6 +41,8 @@ void main() {
       MediaQuery(
         data: MediaQueryData(padding: mediaPadding),
         child: MaterialApp(
+          theme: buildSprintTheme(Brightness.light),
+          darkTheme: buildSprintTheme(Brightness.dark),
           home: Scaffold(
             body: LeaderboardScreen(state: state, onViewProfile: onViewProfile),
           ),
@@ -61,7 +65,7 @@ void main() {
     expect(find.text('WIN %'), findsOneWidget);
   });
 
-  testWidgets('uses grey header background and white row background', (
+  testWidgets('uses token header background and theme row background', (
     WidgetTester tester,
   ) async {
     await pumpLeaderboard(
@@ -75,14 +79,17 @@ void main() {
           .ancestor(of: find.text('RANK'), matching: find.byType(ColoredBox))
           .first,
     );
-    expect(headerBox.color, const Color(0xFFF1F5F9));
+    expect(headerBox.color, SprintThemeTokens.light.shellBackground);
 
     final rowMaterial = tester.widget<Material>(
       find
           .ancestor(of: find.text('Alpha'), matching: find.byType(Material))
           .first,
     );
-    expect(rowMaterial.color, Colors.white);
+    expect(
+      rowMaterial.color,
+      buildSprintTheme(Brightness.light).colorScheme.surface,
+    );
   });
 
   testWidgets('does not render top spacer when local source is off', (

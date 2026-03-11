@@ -22,12 +22,12 @@ class SprintRepositoryImpl implements SprintRepository {
     SharedPreferencesLoader sharedPreferencesLoader =
         SharedPreferences.getInstance,
     bool enableRemoteSync = true,
-  })  : _database = database,
-        _firebaseDatabase = enableRemoteSync
-            ? (firebaseDatabase ?? FirebaseDatabase.instance)
-            : null,
-        _loadSharedPreferences = sharedPreferencesLoader,
-        _enableRemoteSync = enableRemoteSync {
+  }) : _database = database,
+       _firebaseDatabase = enableRemoteSync
+           ? (firebaseDatabase ?? FirebaseDatabase.instance)
+           : null,
+       _loadSharedPreferences = sharedPreferencesLoader,
+       _enableRemoteSync = enableRemoteSync {
     if (_enableRemoteSync) {
       final firebase = _firebaseDatabase!;
       _playersRef = firebase.ref(Defaults.dbPlayersPath);
@@ -38,6 +38,7 @@ class SprintRepositoryImpl implements SprintRepository {
 
     _syncStateController.add(_syncStateValue);
     _kFactorController.add(_kFactorValue);
+    _themePreferenceController.add(_themePreferenceValue);
     unawaited(
       _initialize().catchError((Object error, StackTrace stackTrace) {
         AppLogger.error(
@@ -62,10 +63,15 @@ class SprintRepositoryImpl implements SprintRepository {
 
   final StreamController<models.SyncState> _syncStateController =
       StreamController<models.SyncState>.broadcast();
-  final StreamController<int> _kFactorController = StreamController<int>.broadcast();
+  final StreamController<int> _kFactorController =
+      StreamController<int>.broadcast();
+  final StreamController<models.AppThemePreference> _themePreferenceController =
+      StreamController<models.AppThemePreference>.broadcast();
 
   models.SyncState _syncStateValue = const models.SyncState();
   int _kFactorValue = Defaults.eloK;
+  models.AppThemePreference _themePreferenceValue =
+      models.AppThemePreference.light;
 
   StreamSubscription<DatabaseEvent>? _playersSubscription;
   StreamSubscription<DatabaseEvent>? _historySubscription;
@@ -93,9 +99,16 @@ class SprintRepositoryImpl implements SprintRepository {
   @override
   Stream<int> get kFactor => _kFactorController.stream;
 
+  @override
+  Stream<models.AppThemePreference> get themePreference async* {
+    yield _themePreferenceValue;
+    yield* _themePreferenceController.stream;
+  }
+
   Future<void> _initialize() async {
     await _seedPlayersIfEmpty();
     await _loadInitialKFactor();
+    await _loadInitialThemePreference();
     if (!_enableRemoteSync) {
       return;
     }
@@ -115,7 +128,8 @@ class SprintRepositoryImpl implements SprintRepository {
 
     await _database.transactionRun(() async {
       final playersById = {
-        for (final row in await _database.getPlayers()) row.id: _playerFromRow(row),
+        for (final row in await _database.getPlayers())
+          row.id: _playerFromRow(row),
       };
       final existingHistory = (await _database.getHistory())
           .map(_historyFromRow)
@@ -141,16 +155,22 @@ class SprintRepositoryImpl implements SprintRepository {
         final newP1 = p1.copyWith(
           elo: elo.p1Elo,
           wins: p1.wins + (resultInput.result == models.MatchResult.p1 ? 1 : 0),
-          losses: p1.losses + (resultInput.result == models.MatchResult.p2 ? 1 : 0),
-          draws: p1.draws + (resultInput.result == models.MatchResult.draw ? 1 : 0),
+          losses:
+              p1.losses + (resultInput.result == models.MatchResult.p2 ? 1 : 0),
+          draws:
+              p1.draws +
+              (resultInput.result == models.MatchResult.draw ? 1 : 0),
           matchesPlayed: p1.matchesPlayed + 1,
         );
 
         final newP2 = p2.copyWith(
           elo: elo.p2Elo,
           wins: p2.wins + (resultInput.result == models.MatchResult.p2 ? 1 : 0),
-          losses: p2.losses + (resultInput.result == models.MatchResult.p1 ? 1 : 0),
-          draws: p2.draws + (resultInput.result == models.MatchResult.draw ? 1 : 0),
+          losses:
+              p2.losses + (resultInput.result == models.MatchResult.p1 ? 1 : 0),
+          draws:
+              p2.draws +
+              (resultInput.result == models.MatchResult.draw ? 1 : 0),
           matchesPlayed: p2.matchesPlayed + 1,
         );
 
@@ -208,7 +228,8 @@ class SprintRepositoryImpl implements SprintRepository {
 
       final targetEntry = _historyFromRow(target);
       final playersById = {
-        for (final row in await _database.getPlayers()) row.id: _playerFromRow(row),
+        for (final row in await _database.getPlayers())
+          row.id: _playerFromRow(row),
       };
 
       final revertedMap = MatchRollbackEngine.revert(playersById, targetEntry);
@@ -238,7 +259,9 @@ class SprintRepositoryImpl implements SprintRepository {
 
     await _database.transactionRun(() async {
       await _database.clearPlayers();
-      await _database.upsertPlayers(players.map(_playerToCompanion).toList(growable: false));
+      await _database.upsertPlayers(
+        players.map(_playerToCompanion).toList(growable: false),
+      );
       await _database.clearHistory();
     });
 
@@ -255,6 +278,11 @@ class SprintRepositoryImpl implements SprintRepository {
     await _pushKFactorToFirebase(kFactor);
   }
 
+  @override
+  Future<void> setThemePreference(models.AppThemePreference preference) async {
+    await _persistThemePreference(preference);
+  }
+
   Future<void> _seedPlayersIfEmpty() async {
     final existingPlayers = await _database.getPlayers();
     if (existingPlayers.isNotEmpty) {
@@ -262,7 +290,9 @@ class SprintRepositoryImpl implements SprintRepository {
     }
 
     final initialPlayers = Defaults.initialPlayers();
-    await _database.upsertPlayers(initialPlayers.map(_playerToCompanion).toList(growable: false));
+    await _database.upsertPlayers(
+      initialPlayers.map(_playerToCompanion).toList(growable: false),
+    );
   }
 
   Future<void> _clearLegacyTournamentOnce() async {
@@ -469,6 +499,35 @@ class SprintRepositoryImpl implements SprintRepository {
     }
   }
 
+  Future<void> _persistThemePreference(
+    models.AppThemePreference preference,
+  ) async {
+    final prefs = await _loadSharedPreferences();
+    await prefs.setString(_keyThemeMode, preference.toWire());
+    await _database.setSetting(_settingThemeMode, preference.toWire());
+    _themePreferenceValue = preference;
+    _themePreferenceController.add(preference);
+  }
+
+  Future<void> _loadInitialThemePreference() async {
+    final databaseValue = await _database.getSetting(_settingThemeMode);
+    if (databaseValue != null && databaseValue.isNotEmpty) {
+      _themePreferenceValue = models.AppThemePreference.fromWire(databaseValue);
+      _themePreferenceController.add(_themePreferenceValue);
+      return;
+    }
+
+    final prefs = await _loadSharedPreferences();
+    final persisted = prefs.getString(_keyThemeMode);
+    _themePreferenceValue = models.AppThemePreference.fromWire(persisted);
+    await _database.setSetting(
+      _settingThemeMode,
+      _themePreferenceValue.toWire(),
+    );
+    await prefs.setString(_keyThemeMode, _themePreferenceValue.toWire());
+    _themePreferenceController.add(_themePreferenceValue);
+  }
+
   List<models.Player> _parsePlayers(DataSnapshot snapshot) {
     final players = <models.Player>[];
     for (final child in snapshot.children) {
@@ -477,7 +536,8 @@ class SprintRepositoryImpl implements SprintRepository {
         continue;
       }
       final normalized = raw.map(
-        (key, value) => MapEntry<String, Object?>(key.toString(), value as Object?),
+        (key, value) =>
+            MapEntry<String, Object?>(key.toString(), value as Object?),
       );
       final id = normalized['id']?.toString().trim() ?? '';
       final name = normalized['name']?.toString().trim() ?? '';
@@ -497,7 +557,8 @@ class SprintRepositoryImpl implements SprintRepository {
         continue;
       }
       final normalized = raw.map(
-        (key, value) => MapEntry<String, Object?>(key.toString(), value as Object?),
+        (key, value) =>
+            MapEntry<String, Object?>(key.toString(), value as Object?),
       );
       final id = normalized['id']?.toString().trim() ?? '';
       if (id.isEmpty) {
@@ -602,10 +663,14 @@ class SprintRepositoryImpl implements SprintRepository {
     _settingsSubscription?.cancel();
     _syncStateController.close();
     _kFactorController.close();
+    _themePreferenceController.close();
     _database.close();
   }
 
-  static const String _keyLegacyTournamentCleared = 'legacy_tournament_cleared_v1';
+  static const String _keyLegacyTournamentCleared =
+      'legacy_tournament_cleared_v1';
   static const String _keyEloKFactor = 'elo_k_factor_v1';
+  static const String _keyThemeMode = 'theme_mode_v1';
   static const String _settingKFactor = 'k_factor';
+  static const String _settingThemeMode = 'theme_mode';
 }

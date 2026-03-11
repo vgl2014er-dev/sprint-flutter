@@ -1,0 +1,239 @@
+import 'package:flutter/material.dart';
+
+import '../../models/app_models.dart';
+import '../theme/breakpoints.dart';
+import '../theme/sprint_theme_tokens.dart';
+import '../widgets/local_approval_banner.dart';
+import 'leaderboard_screen.dart';
+
+class LandingScreen extends StatelessWidget {
+  const LandingScreen({
+    required this.localSessionState,
+    required this.isLocalSource,
+    required this.onOpenRandom,
+    required this.onOpenElo,
+    required this.onOpenDeathMatch,
+    required this.onStartLocalDisplay,
+    required this.onConnectLocalDisplay,
+    required this.onStopLocalDisplay,
+    required this.onUseLocalConnection,
+    required this.onUseDatabase,
+    required this.onConnectHost,
+    required this.onDisconnectLocal,
+    required this.onAcceptLocalConnection,
+    required this.onRejectLocalConnection,
+    super.key,
+  });
+
+  final LocalSessionState localSessionState;
+  final bool isLocalSource;
+  final VoidCallback onOpenRandom;
+  final VoidCallback onOpenElo;
+  final VoidCallback onOpenDeathMatch;
+  final VoidCallback onStartLocalDisplay;
+  final VoidCallback onConnectLocalDisplay;
+  final VoidCallback onStopLocalDisplay;
+  final VoidCallback onUseLocalConnection;
+  final VoidCallback onUseDatabase;
+  final ValueChanged<String> onConnectHost;
+  final VoidCallback onDisconnectLocal;
+  final VoidCallback onAcceptLocalConnection;
+  final VoidCallback onRejectLocalConnection;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final tokens = context.sprintTokens;
+    final scheme = Theme.of(context).colorScheme;
+    final localActive = localSessionState.role == LocalSessionRole.host;
+    final showNearbySetup =
+        localSessionState.role == LocalSessionRole.client ||
+        localSessionState.discoveredHosts.isNotEmpty ||
+        isLocalSource;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = SprintBreakpoints.isCompact(constraints.maxWidth);
+        final padding = compact ? 12.0 : 20.0;
+
+        return ListView(
+          padding: EdgeInsets.all(padding),
+          children: <Widget>[
+            Text(
+              'Sprint Duels',
+              style: textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Matchmaking and Elo tracking',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
+            ),
+            const SizedBox(height: 24),
+            _ActionCard(
+              title: 'Random Matches',
+              subtitle: 'Generate random 1v1 matchups.',
+              icon: Icons.casino_rounded,
+              onTap: onOpenRandom,
+            ),
+            _ActionCard(
+              title: 'Elo Matches',
+              subtitle: 'Pair nearby Elo ratings together.',
+              icon: Icons.balance_rounded,
+              onTap: onOpenElo,
+            ),
+            _ActionCard(
+              title: 'Death Match',
+              subtitle: 'Set lives and fight until one remains.',
+              icon: Icons.favorite_rounded,
+              onTap: onOpenDeathMatch,
+              accent: scheme.error,
+            ),
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                border: Border.all(color: tokens.footerBorder),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Offline Mirror',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    localActive
+                        ? (localSessionState.phase ==
+                                  LocalSessionPhase.connected
+                              ? '${localSessionState.connectedHostName ?? 'Display device'} is receiving live updates.'
+                              : 'Hosting nearby mirror as ${localSessionState.localEndpointName ?? 'Sprint Device'}.')
+                        : 'A nearby second device can mirror the leaderboard without internet.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: tokens.mutedText,
+                    ),
+                  ),
+                  if (localSessionState.authToken != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Code ${localSessionState.authToken}',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      OutlinedButton.icon(
+                        onPressed: localActive
+                            ? onStopLocalDisplay
+                            : onStartLocalDisplay,
+                        icon: Icon(
+                          localActive
+                              ? Icons.stop_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
+                        label: Text(localActive ? 'Stop' : 'Host'),
+                      ),
+                      if (!localActive)
+                        OutlinedButton.icon(
+                          onPressed: onConnectLocalDisplay,
+                          icon: const Icon(Icons.wifi_tethering_rounded),
+                          label: const Text('Connect'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (localSessionState.phase == LocalSessionPhase.awaitingApproval)
+              LocalApprovalBanner(
+                sessionState: localSessionState,
+                onAccept: onAcceptLocalConnection,
+                onReject: onRejectLocalConnection,
+              ),
+            if (showNearbySetup) ...<Widget>[
+              if (isLocalSource)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8, left: 8),
+                    child: OutlinedButton(
+                      onPressed: onUseDatabase,
+                      child: const Text('Use DB'),
+                    ),
+                  ),
+                ),
+              LocalPanel(
+                state: localSessionState,
+                isLocalSource: isLocalSource,
+                onUseLocalConnection: onUseLocalConnection,
+                onConnectHost: onConnectHost,
+                onDisconnectLocal: onDisconnectLocal,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.accent,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final tokens = context.sprintTokens;
+    final resolvedAccent = accent ?? Theme.of(context).colorScheme.primary;
+    final avatarBackgroundColor = accent == null
+        ? tokens.neutralChip
+        : resolvedAccent.withValues(alpha: 0.15);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: avatarBackgroundColor,
+          child: Icon(icon, color: resolvedAccent),
+        ),
+        title: Text(
+          title,
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+      ),
+    );
+  }
+}

@@ -36,17 +36,15 @@ void main() {
       await adapter.setImmersiveMode(showStatusBar: false);
 
       expect(outgoingCalls[0].method, 'nearbyStartHost');
-      expect(
-        outgoingCalls[0].arguments,
-        <String, Object?>{'localEndpointName': 'Sprint Display'},
-      );
+      expect(outgoingCalls[0].arguments, <String, Object?>{
+        'localEndpointName': 'Sprint Display',
+      });
       expect(outgoingCalls[1].method, 'nearbyScanHosts');
       expect(outgoingCalls[2].method, 'nearbyConnectHost');
       expect(outgoingCalls[3].method, 'setImmersiveMode');
-      expect(
-        outgoingCalls[3].arguments,
-        <String, Object?>{'showStatusBar': false},
-      );
+      expect(outgoingCalls[3].arguments, <String, Object?>{
+        'showStatusBar': false,
+      });
     });
 
     test('publishes local session events to stream listeners', () async {
@@ -62,10 +60,7 @@ void main() {
       await adapter.handleMethodCallForTest(
         const MethodCall('onPlatformEvent', <String, Object?>{
           'type': 'local_session_state',
-          'data': <String, Object?>{
-            'role': 'client',
-            'phase': 'connected',
-          },
+          'data': <String, Object?>{'role': 'client', 'phase': 'connected'},
         }),
       );
 

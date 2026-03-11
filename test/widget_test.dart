@@ -5,9 +5,7 @@ void main() {
   testWidgets('sprint test harness renders', (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Sprint')),
-        ),
+        home: Scaffold(body: Center(child: Text('Sprint'))),
       ),
     );
 
