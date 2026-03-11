@@ -149,11 +149,9 @@ class _StandardSessionCompleteState extends StatelessWidget {
   }
 }
 
-int _survivorsCount(AppState state) {
-  return state.deathMatchParticipantIds.where((id) {
+int _survivorsCount(AppState state) => state.deathMatchParticipantIds.where((id) {
     return (state.deathMatchLossesByPlayerId[id] ?? 0) < state.deathMatchLives;
   }).length;
-}
 
 class _MatchCard extends StatelessWidget {
   const _MatchCard({
@@ -296,10 +294,8 @@ class _MatchCard extends StatelessWidget {
     if (history.isEmpty) {
       return 0;
     }
-    final wins = history.where((entry) {
-      return (entry.p1Id == playerId && entry.result == MatchResult.p1) ||
-          (entry.p2Id == playerId && entry.result == MatchResult.p2);
-    }).length;
+    final wins = history.where((entry) => (entry.p1Id == playerId && entry.result == MatchResult.p1) ||
+          (entry.p2Id == playerId && entry.result == MatchResult.p2)).length;
     return wins / history.length * 100;
   }
 

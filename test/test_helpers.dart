@@ -8,8 +8,7 @@ Player player(
   int losses = 0,
   int draws = 0,
   int matchesPlayed = 0,
-}) {
-  return Player(
+}) => Player(
     id: id,
     name: name ?? id,
     elo: elo,
@@ -18,7 +17,6 @@ Player player(
     draws: draws,
     matchesPlayed: matchesPlayed,
   );
-}
 
 MatchHistoryEntry historyEntry({
   required String id,
@@ -32,8 +30,7 @@ MatchHistoryEntry historyEntry({
   required int p2EloAfter,
   required MatchResult result,
   required int timestamp,
-}) {
-  return MatchHistoryEntry(
+}) => MatchHistoryEntry(
     id: id,
     p1Id: p1Id,
     p2Id: p2Id,
@@ -46,4 +43,3 @@ MatchHistoryEntry historyEntry({
     result: result,
     timestamp: timestamp,
   );
-}

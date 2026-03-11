@@ -60,7 +60,7 @@ void main() {
   testWidgets('renders table headers', (WidgetTester tester) async {
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha', elo: 1200)]),
+      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
       onViewProfile: (_) {},
     );
 
@@ -76,7 +76,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(
-        <Player>[player('p1', name: 'Alpha', elo: 1200)],
+        <Player>[player('p1', name: 'Alpha')],
         localSessionStateOverride: const LocalSessionState(
           role: LocalSessionRole.client,
           phase: LocalSessionPhase.connected,
@@ -95,7 +95,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(
-        <Player>[player('p1', name: 'Alpha', elo: 1200)],
+        <Player>[player('p1', name: 'Alpha')],
         localSessionStateOverride: const LocalSessionState(
           role: LocalSessionRole.client,
           phase: LocalSessionPhase.disconnected,
@@ -113,7 +113,7 @@ void main() {
   ) async {
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha', elo: 1200)]),
+      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
       onViewProfile: (_) {},
     );
 
@@ -140,7 +140,7 @@ void main() {
   ) async {
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha', elo: 1200)]),
+      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
       onViewProfile: (_) {},
     );
 
@@ -153,7 +153,7 @@ void main() {
   ) async {
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha', elo: 1200)]),
+      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
       onViewProfile: (_) {},
     );
 
@@ -166,7 +166,7 @@ void main() {
   ) async {
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha', elo: 1200)]),
+      state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
       onViewProfile: (_) {},
       mediaPadding: const EdgeInsets.only(top: 96),
     );
@@ -181,7 +181,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'Low', elo: 1200),
+        player('p1', name: 'Low'),
         player('p2', name: 'High', elo: 1300),
         player('p3', name: 'Mid', elo: 1250),
       ]),
@@ -204,7 +204,7 @@ void main() {
       state: stateWithPlayers(<Player>[
         player('p1', name: 'One', elo: 1400),
         player('p2', name: 'Two', elo: 1300),
-        player('p3', name: 'Three', elo: 1200),
+        player('p3', name: 'Three'),
         player('p4', name: 'Four', elo: 1100),
       ]),
       onViewProfile: (_) {},
@@ -220,7 +220,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'Rate', elo: 1280, wins: 5, losses: 1, draws: 0),
+        player('p1', name: 'Rate', elo: 1280, wins: 5, losses: 1),
       ]),
       onViewProfile: (_) {},
     );
@@ -355,8 +355,8 @@ void main() {
         tester,
         state: stateWithPlayers(
           <Player>[
-            player('p1', name: 'Zero One', elo: 1200),
-            player('p2', name: 'Zero Two', elo: 1200),
+            player('p1', name: 'Zero One'),
+            player('p2', name: 'Zero Two'),
           ],
           history: <MatchHistoryEntry>[
             historyEntry(
@@ -463,10 +463,10 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'P1', elo: 1400, wins: 10, losses: 0, draws: 0),
-        player('p2', name: 'P2', elo: 1300, wins: 8, losses: 2, draws: 0),
-        player('p3', name: 'P3', elo: 1200, wins: 7, losses: 3, draws: 0),
-        player('p4', name: 'Moritz', elo: 1111, wins: 3, losses: 2, draws: 0),
+        player('p1', name: 'P1', elo: 1400, wins: 10),
+        player('p2', name: 'P2', elo: 1300, wins: 8, losses: 2),
+        player('p3', name: 'P3', wins: 7, losses: 3),
+        player('p4', name: 'Moritz', elo: 1111, wins: 3, losses: 2),
       ]),
       onViewProfile: (_) {},
     );
@@ -493,7 +493,7 @@ void main() {
       state: stateWithPlayers(<Player>[
         player('p1', name: 'One', elo: 1400),
         player('p2', name: 'Two', elo: 1300),
-        player('p3', name: 'Three', elo: 1200),
+        player('p3', name: 'Three'),
         player('p4', name: 'Four', elo: 1100),
       ]),
       onViewProfile: (_) {},
@@ -515,7 +515,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'Lion', elo: 1286, wins: 10, losses: 0, draws: 0),
+        player('p1', name: 'Lion', elo: 1286, wins: 10),
       ]),
       onViewProfile: (_) {},
     );
@@ -542,7 +542,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'Tapper', elo: 1200),
+        player('p1', name: 'Tapper'),
       ]),
       onViewProfile: (player) => selectedId = player.id,
     );
@@ -560,7 +560,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p1', name: 'ReadOnly', elo: 1200),
+        player('p1', name: 'ReadOnly'),
       ], readOnlyClient: true),
       onViewProfile: (player) => selectedId = player.id,
     );
@@ -579,7 +579,7 @@ void main() {
       tester,
       size: const Size(280, 700),
       state: stateWithPlayers(<Player>[
-        player('p1', name: longName, elo: 1200),
+        player('p1', name: longName),
       ]),
       onViewProfile: (_) {},
     );

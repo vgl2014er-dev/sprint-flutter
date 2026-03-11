@@ -89,8 +89,7 @@ class SprintThemeTokens extends ThemeExtension<SprintThemeTokens> {
     Color? warning,
     Color? danger,
     Color? inactive,
-  }) {
-    return SprintThemeTokens(
+  }) => SprintThemeTokens(
       shellBackground: shellBackground ?? this.shellBackground,
       headerBackground: headerBackground ?? this.headerBackground,
       footerBorder: footerBorder ?? this.footerBorder,
@@ -107,7 +106,6 @@ class SprintThemeTokens extends ThemeExtension<SprintThemeTokens> {
       danger: danger ?? this.danger,
       inactive: inactive ?? this.inactive,
     );
-  }
 
   @override
   ThemeExtension<SprintThemeTokens> lerp(

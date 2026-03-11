@@ -8,30 +8,29 @@ import 'package:sprint/ui/theme/sprint_theme_tokens.dart';
 Widget _buildLanding({
   required LocalSessionState localSessionState,
   required bool isLocalSource,
-}) {
-  return MaterialApp(
-    theme: buildSprintTheme(Brightness.light),
-    darkTheme: buildSprintTheme(Brightness.dark),
-    home: Scaffold(
-      body: LandingScreen(
-        localSessionState: localSessionState,
-        isLocalSource: isLocalSource,
-        onOpenRandom: () {},
-        onOpenElo: () {},
-        onOpenDeathMatch: () {},
-        onStartLocalDisplay: () {},
-        onConnectLocalDisplay: () {},
-        onStopLocalDisplay: () {},
-        onUseLocalConnection: () {},
-        onUseDatabase: () {},
-        onConnectHost: (_) {},
-        onDisconnectLocal: () {},
-        onAcceptLocalConnection: () {},
-        onRejectLocalConnection: () {},
-      ),
+  VoidCallback? onConnectLocalDisplay,
+}) => MaterialApp(
+  theme: buildSprintTheme(Brightness.light),
+  darkTheme: buildSprintTheme(Brightness.dark),
+  home: Scaffold(
+    body: LandingScreen(
+      localSessionState: localSessionState,
+      isLocalSource: isLocalSource,
+      onOpenRandom: () {},
+      onOpenElo: () {},
+      onOpenDeathMatch: () {},
+      onStartLocalDisplay: () {},
+      onConnectLocalDisplay: onConnectLocalDisplay ?? () {},
+      onStopLocalDisplay: () {},
+      onUseLocalConnection: () {},
+      onUseDatabase: () {},
+      onConnectHost: (_) {},
+      onDisconnectLocal: () {},
+      onAcceptLocalConnection: () {},
+      onRejectLocalConnection: () {},
     ),
-  );
-}
+  ),
+);
 
 void main() {
   testWidgets('random matches card uses neutral grey icon chip', (
@@ -88,7 +87,7 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Host'), findsNothing);
   });
 
-  testWidgets('shows nearby connect setup and approval on landing', (
+  testWidgets('shows inline approval actions without separate nearby cards', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -106,10 +105,68 @@ void main() {
       ),
     );
 
-    expect(find.text('Approve Nearby Connection'), findsOneWidget);
+    expect(find.text('Approve Nearby Connection'), findsNothing);
+    expect(find.text('Nearby'), findsNothing);
+    expect(find.textContaining('Compare code'), findsNothing);
+    expect(find.widgetWithText(ElevatedButton, 'Accept'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Reject'), findsOneWidget);
+  });
+
+  testWidgets('connect reveals available nearby devices in offline card', (
+    WidgetTester tester,
+  ) async {
+    var localState = const LocalSessionState();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildSprintTheme(Brightness.light),
+        darkTheme: buildSprintTheme(Brightness.dark),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => LandingScreen(
+              localSessionState: localState,
+              isLocalSource: false,
+              onOpenRandom: () {},
+              onOpenElo: () {},
+              onOpenDeathMatch: () {},
+              onStartLocalDisplay: () {},
+              onConnectLocalDisplay: () {
+                setState(() {
+                  localState = const LocalSessionState(
+                    role: LocalSessionRole.client,
+                    phase: LocalSessionPhase.discovering,
+                    discoveredHosts: <DiscoveredHost>[
+                      DiscoveredHost(
+                        endpointId: 'XC13',
+                        displayName: 'Sprint Device',
+                      ),
+                    ],
+                  );
+                });
+              },
+              onStopLocalDisplay: () {},
+              onUseLocalConnection: () {},
+              onUseDatabase: () {},
+              onConnectHost: (_) {},
+              onDisconnectLocal: () {},
+              onAcceptLocalConnection: () {},
+              onRejectLocalConnection: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Sprint Device'), findsNothing);
+    expect(find.text('XC13'), findsNothing);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+    await tester.pump(const Duration(milliseconds: 300));
+
     await tester.drag(find.byType(ListView).first, const Offset(0, -400));
-    await tester.pumpAndSettle();
-    expect(find.text('Nearby'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Sprint Device'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Connect'), findsOneWidget);
     expect(find.text('XC13'), findsOneWidget);
   });

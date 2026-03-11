@@ -455,11 +455,9 @@ class SprintController extends StateNotifier<AppState> {
     final maxIterations = participantIds.length * resolvedTarget * 12;
     var iterations = 0;
 
-    bool allScheduledToTarget() {
-      return participantIds.every(
+    bool allScheduledToTarget() => participantIds.every(
         (id) => (scheduledCounts[id] ?? 0) >= resolvedTarget,
       );
-    }
 
     while (!allScheduledToTarget()) {
       iterations += 1;
@@ -934,9 +932,7 @@ class SprintController extends StateNotifier<AppState> {
     }
   }
 
-  bool _isClientLockedToLeaderboard() {
-    return state.isReadOnlyClientMode;
-  }
+  bool _isClientLockedToLeaderboard() => state.isReadOnlyClientMode;
 
   void _syncImmersiveModeForState(AppState targetState) {
     final showStatusBar = !_shouldUseFullscreenLeaderboard(targetState);
@@ -950,12 +946,10 @@ class SprintController extends StateNotifier<AppState> {
     );
   }
 
-  bool _shouldUseFullscreenLeaderboard(AppState value) {
-    return value.screen == Screen.leaderboard &&
+  bool _shouldUseFullscreenLeaderboard(AppState value) => value.screen == Screen.leaderboard &&
         value.leaderboardSource == LeaderboardSource.local &&
         value.localSessionState.role == LocalSessionRole.client &&
         value.localSessionState.phase == LocalSessionPhase.connected;
-  }
 
   @override
   void dispose() {
@@ -1030,10 +1024,8 @@ List<UiRoundMatch> reorderRoundMatchesToAvoidFirstMatchPlayers(
     return matches;
   }
 
-  bool containsExcluded(UiRoundMatch match) {
-    return excludedPlayerIds.contains(match.player1.id) ||
+  bool containsExcluded(UiRoundMatch match) => excludedPlayerIds.contains(match.player1.id) ||
         excludedPlayerIds.contains(match.player2.id);
-  }
 
   if (!containsExcluded(matches.first)) {
     return matches;

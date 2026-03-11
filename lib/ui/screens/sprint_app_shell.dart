@@ -314,8 +314,7 @@ void _showSnack(BuildContext context, String message) {
 Future<bool> _showResetLeaderboardDialog(BuildContext context) async {
   final confirm = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
+    builder: (dialogContext) => AlertDialog(
         title: const Text('Reset Leaderboard?'),
         content: const Text(
           'Delete all match history and reset all players to 1200 Elo.',
@@ -330,8 +329,7 @@ Future<bool> _showResetLeaderboardDialog(BuildContext context) async {
             child: const Text('Reset Data'),
           ),
         ],
-      );
-    },
+      ),
   );
   return confirm == true;
 }

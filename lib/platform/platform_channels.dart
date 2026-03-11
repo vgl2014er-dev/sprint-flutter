@@ -63,69 +63,49 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
   Stream<String> get errors => _errorsController.stream;
 
   @override
-  Future<void> startLocalHosting(String localEndpointName) {
-    return _methodChannel.invokeMethod<void>(
+  Future<void> startLocalHosting(String localEndpointName) => _methodChannel.invokeMethod<void>(
       'nearbyStartHost',
       <String, Object?>{'localEndpointName': localEndpointName},
     );
-  }
 
   @override
-  Future<void> stopLocalHosting() {
-    return _methodChannel.invokeMethod<void>('nearbyStopHost');
-  }
+  Future<void> stopLocalHosting() => _methodChannel.invokeMethod<void>('nearbyStopHost');
 
   @override
-  Future<void> scanLocalHosts(String localEndpointName) {
-    return _methodChannel.invokeMethod<void>(
+  Future<void> scanLocalHosts(String localEndpointName) => _methodChannel.invokeMethod<void>(
       'nearbyScanHosts',
       <String, Object?>{'localEndpointName': localEndpointName},
     );
-  }
 
   @override
-  Future<void> connectToLocalHost(String endpointId) {
-    return _methodChannel.invokeMethod<void>(
+  Future<void> connectToLocalHost(String endpointId) => _methodChannel.invokeMethod<void>(
       'nearbyConnectHost',
       <String, Object?>{'endpointId': endpointId},
     );
-  }
 
   @override
-  Future<void> acceptLocalConnection() {
-    return _methodChannel.invokeMethod<void>('nearbyAcceptConnection');
-  }
+  Future<void> acceptLocalConnection() => _methodChannel.invokeMethod<void>('nearbyAcceptConnection');
 
   @override
-  Future<void> rejectLocalConnection() {
-    return _methodChannel.invokeMethod<void>('nearbyRejectConnection');
-  }
+  Future<void> rejectLocalConnection() => _methodChannel.invokeMethod<void>('nearbyRejectConnection');
 
   @override
-  Future<void> disconnectLocalConnection() {
-    return _methodChannel.invokeMethod<void>('nearbyDisconnect');
-  }
+  Future<void> disconnectLocalConnection() => _methodChannel.invokeMethod<void>('nearbyDisconnect');
 
   @override
-  Future<void> useDatabaseModeForLocal() {
-    return _methodChannel.invokeMethod<void>('nearbyUseDb');
-  }
+  Future<void> useDatabaseModeForLocal() => _methodChannel.invokeMethod<void>('nearbyUseDb');
 
   @override
-  Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot) {
-    return _methodChannel.invokeMethod<void>(
+  Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot) => _methodChannel.invokeMethod<void>(
       'publishLocalSnapshot',
       <String, Object?>{'snapshot': snapshot.toJson()},
     );
-  }
 
   @override
-  Future<void> setImmersiveMode({bool showStatusBar = true}) {
-    return _methodChannel.invokeMethod<void>(
+  Future<void> setImmersiveMode({bool showStatusBar = true}) => _methodChannel.invokeMethod<void>(
       'setImmersiveMode',
       <String, Object?>{'showStatusBar': showStatusBar},
     );
-  }
 
   Future<void> _onMethodCall(MethodCall call) async {
     if (call.method != 'onPlatformEvent') {
@@ -160,9 +140,7 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
 
   /// Exposes platform-event parsing for unit tests.
   @visibleForTesting
-  Future<void> handleMethodCallForTest(MethodCall call) {
-    return _onMethodCall(call);
-  }
+  Future<void> handleMethodCallForTest(MethodCall call) => _onMethodCall(call);
 
   @override
   void dispose() {

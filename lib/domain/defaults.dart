@@ -31,8 +31,7 @@ class Defaults {
     'Moussa',
   ];
 
-  static List<Player> initialPlayers() {
-    return initialNames
+  static List<Player> initialPlayers() => initialNames
         .map(
           (name) => Player(
             id: name.toLowerCase(),
@@ -45,5 +44,4 @@ class Defaults {
           ),
         )
         .toList(growable: false);
-  }
 }

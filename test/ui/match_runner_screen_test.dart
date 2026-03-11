@@ -15,8 +15,7 @@ void main() {
     Map<String, int>? completedByPlayerId,
     Map<String, int>? scheduledByPlayerId,
     bool deathMatch = false,
-  }) {
-    return AppState.initial().copyWith(
+  }) => AppState.initial().copyWith(
       screen: Screen.matchRunner,
       roundMatches: matches,
       currentMatchIndex: currentIndex,
@@ -42,10 +41,8 @@ void main() {
           ? (scheduledByPlayerId ?? const <String, int>{})
           : const <String, int>{},
     );
-  }
 
-  Widget buildSubject(AppState state, {VoidCallback? onNextRound}) {
-    return MaterialApp(
+  Widget buildSubject(AppState state, {VoidCallback? onNextRound}) => MaterialApp(
       home: Scaffold(
         body: MatchRunnerScreen(
           state: state,
@@ -57,7 +54,6 @@ void main() {
         ),
       ),
     );
-  }
 
   testWidgets('shows matchup names and START before match begins', (
     WidgetTester tester,
@@ -66,8 +62,6 @@ void main() {
       id: 'm1',
       player1: player('p1', name: 'Alice', elo: 1210),
       player2: player('p2', name: 'Bob', elo: 1190),
-      started: false,
-      played: false,
     );
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
@@ -90,7 +84,6 @@ void main() {
       player1: player('p1', name: 'Alice', elo: 1210),
       player2: player('p2', name: 'Bob', elo: 1190),
       started: true,
-      played: false,
     );
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
@@ -116,8 +109,6 @@ void main() {
       id: 'm2',
       player1: player('p3', name: 'Chris'),
       player2: player('p4', name: 'Drew'),
-      started: false,
-      played: false,
     );
 
     await tester.pumpWidget(
@@ -150,8 +141,6 @@ void main() {
       id: 'm1',
       player1: player('p1', name: 'Alice'),
       player2: player('p2', name: 'Bob'),
-      started: false,
-      played: false,
     );
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
@@ -171,8 +160,6 @@ void main() {
       id: 'm1',
       player1: player('p1', name: 'Alice'),
       player2: player('p2', name: 'Bob'),
-      started: false,
-      played: false,
     );
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
@@ -187,7 +174,6 @@ void main() {
       player1: player('p1', name: 'Alice', elo: 1210),
       player2: player('p2', name: 'Bob', elo: 1190),
       started: true,
-      played: false,
     );
 
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
@@ -214,15 +200,11 @@ void main() {
         id: 'm2',
         player1: player('p3', name: 'Chris'),
         player2: player('p4', name: 'Drew'),
-        started: false,
-        played: false,
       ),
       UiRoundMatch(
         id: 'm3',
         player1: player('p5', name: 'Eve'),
         player2: player('p6', name: 'Finn'),
-        started: false,
-        played: false,
       ),
     ];
 
@@ -241,7 +223,6 @@ void main() {
       player1: player('p1', name: 'Alice', elo: 1210),
       player2: player('p2', name: 'Bob', elo: 1190),
       started: true,
-      played: false,
     );
 
     await tester.pumpWidget(
@@ -250,7 +231,6 @@ void main() {
           <UiRoundMatch>[match],
           standardSession: true,
           participantIds: const <String>['p1', 'p2'],
-          targetMatchesPerPlayer: 3,
           completedByPlayerId: const <String, int>{'p1': 1, 'p2': 2},
           scheduledByPlayerId: const <String, int>{'p1': 3, 'p2': 3},
         ),

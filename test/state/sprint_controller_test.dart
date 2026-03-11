@@ -272,7 +272,6 @@ void main() {
         final started = controller.generateMatches(
           const <String>{'a', 'b', 'c'},
           PairingStrategy.random,
-          targetMatchesPerPlayer: 3,
         );
 
         expect(started, isTrue);

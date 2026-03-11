@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/app_models.dart';
 import '../theme/breakpoints.dart';
 import '../theme/sprint_theme_tokens.dart';
-import '../widgets/local_approval_banner.dart';
-import 'leaderboard_screen.dart';
+import '../widgets/offline_mirror_setup_card.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({
@@ -43,13 +42,8 @@ class LandingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final tokens = context.sprintTokens;
     final scheme = Theme.of(context).colorScheme;
-    final localActive = localSessionState.role == LocalSessionRole.host;
-    final showNearbySetup =
-        localSessionState.role == LocalSessionRole.client ||
-        localSessionState.discoveredHosts.isNotEmpty ||
-        isLocalSource;
+    final tokens = context.sprintTokens;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -92,98 +86,19 @@ class LandingScreen extends StatelessWidget {
               onTap: onOpenDeathMatch,
               accent: scheme.error,
             ),
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                border: Border.all(color: tokens.footerBorder),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Offline Mirror',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    localActive
-                        ? (localSessionState.phase ==
-                                  LocalSessionPhase.connected
-                              ? '${localSessionState.connectedHostName ?? 'Display device'} is receiving live updates.'
-                              : 'Hosting nearby mirror as ${localSessionState.localEndpointName ?? 'Sprint Device'}.')
-                        : 'A nearby second device can mirror the leaderboard without internet.',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: tokens.mutedText,
-                    ),
-                  ),
-                  if (localSessionState.authToken != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Code ${localSessionState.authToken}',
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: <Widget>[
-                      OutlinedButton.icon(
-                        onPressed: localActive
-                            ? onStopLocalDisplay
-                            : onStartLocalDisplay,
-                        icon: Icon(
-                          localActive
-                              ? Icons.stop_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                        label: Text(localActive ? 'Stop' : 'Host'),
-                      ),
-                      if (!localActive)
-                        OutlinedButton.icon(
-                          onPressed: onConnectLocalDisplay,
-                          icon: const Icon(Icons.wifi_tethering_rounded),
-                          label: const Text('Connect'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+            OfflineMirrorSetupCard(
+              localSessionState: localSessionState,
+              isLocalSource: isLocalSource,
+              onStartLocalDisplay: onStartLocalDisplay,
+              onConnectLocalDisplay: onConnectLocalDisplay,
+              onStopLocalDisplay: onStopLocalDisplay,
+              onUseLocalConnection: onUseLocalConnection,
+              onUseDatabase: onUseDatabase,
+              onConnectHost: onConnectHost,
+              onDisconnectLocal: onDisconnectLocal,
+              onAcceptLocalConnection: onAcceptLocalConnection,
+              onRejectLocalConnection: onRejectLocalConnection,
             ),
-            if (localSessionState.phase == LocalSessionPhase.awaitingApproval)
-              LocalApprovalBanner(
-                sessionState: localSessionState,
-                onAccept: onAcceptLocalConnection,
-                onReject: onRejectLocalConnection,
-              ),
-            if (showNearbySetup) ...<Widget>[
-              if (isLocalSource)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, left: 8),
-                    child: OutlinedButton(
-                      onPressed: onUseDatabase,
-                      child: const Text('Use DB'),
-                    ),
-                  ),
-                ),
-              LocalPanel(
-                state: localSessionState,
-                isLocalSource: isLocalSource,
-                onUseLocalConnection: onUseLocalConnection,
-                onConnectHost: onConnectHost,
-                onDisconnectLocal: onDisconnectLocal,
-              ),
-            ],
           ],
         );
       },

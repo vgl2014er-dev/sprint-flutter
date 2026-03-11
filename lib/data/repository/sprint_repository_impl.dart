@@ -80,18 +80,14 @@ class SprintRepositoryImpl implements SprintRepository {
   bool _isDisposed = false;
 
   @override
-  Stream<List<models.Player>> get players {
-    return _database.watchPlayers().map(
+  Stream<List<models.Player>> get players => _database.watchPlayers().map(
       (rows) => rows.map(_playerFromRow).toList(growable: false),
     );
-  }
 
   @override
-  Stream<List<models.MatchHistoryEntry>> get history {
-    return _database.watchHistory().map(
+  Stream<List<models.MatchHistoryEntry>> get history => _database.watchHistory().map(
       (rows) => rows.map(_historyFromRow).toList(growable: false),
     );
-  }
 
   @override
   Stream<models.SyncState> get syncState => _syncStateController.stream;
@@ -197,7 +193,6 @@ class SprintRepositoryImpl implements SprintRepository {
       updatedPlayers = playersById.values.toList(growable: false);
       updatedHistory = HistoryPolicy.cap(
         existingHistory,
-        maxEntries: Defaults.historyLimit,
       );
 
       await _database.clearPlayers();
@@ -414,7 +409,6 @@ class SprintRepositoryImpl implements SprintRepository {
     if (!_enableRemoteSync || _playersRef == null || _historyRef == null) {
       _setSyncState(
         models.SyncState(
-          isSyncing: false,
           lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
         ),
       );
@@ -434,7 +428,6 @@ class SprintRepositoryImpl implements SprintRepository {
       );
       _setSyncState(
         models.SyncState(
-          isSyncing: false,
           lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
         ),
       );
@@ -573,14 +566,14 @@ class SprintRepositoryImpl implements SprintRepository {
 
   int? _parseKFactor(Object? rawValue) {
     final value = switch (rawValue) {
-      Map<dynamic, dynamic> map => map['kFactor'],
+      final Map<dynamic, dynamic> map => map['kFactor'],
       _ => rawValue,
     };
 
     final parsed = switch (value) {
-      int v => v,
-      num v => v.toInt(),
-      String v => int.tryParse(v),
+      final int v => v,
+      final num v => v.toInt(),
+      final String v => int.tryParse(v),
       _ => null,
     };
 
@@ -591,8 +584,7 @@ class SprintRepositoryImpl implements SprintRepository {
     return parsed;
   }
 
-  models.Player _playerFromRow(db.Player row) {
-    return models.Player(
+  models.Player _playerFromRow(db.Player row) => models.Player(
       id: row.id,
       name: row.name,
       elo: row.elo,
@@ -601,10 +593,8 @@ class SprintRepositoryImpl implements SprintRepository {
       draws: row.draws,
       matchesPlayed: row.matchesPlayed,
     );
-  }
 
-  db.PlayersCompanion _playerToCompanion(models.Player player) {
-    return db.PlayersCompanion(
+  db.PlayersCompanion _playerToCompanion(models.Player player) => db.PlayersCompanion(
       id: Value<String>(player.id),
       name: Value<String>(player.name),
       elo: Value<int>(player.elo),
@@ -613,10 +603,8 @@ class SprintRepositoryImpl implements SprintRepository {
       draws: Value<int>(player.draws),
       matchesPlayed: Value<int>(player.matchesPlayed),
     );
-  }
 
-  models.MatchHistoryEntry _historyFromRow(db.MatchHistoryData row) {
-    return models.MatchHistoryEntry(
+  models.MatchHistoryEntry _historyFromRow(db.MatchHistoryData row) => models.MatchHistoryEntry(
       id: row.id,
       p1Id: row.p1Id,
       p2Id: row.p2Id,
@@ -629,10 +617,8 @@ class SprintRepositoryImpl implements SprintRepository {
       result: models.MatchResult.fromWire(row.result),
       timestamp: row.timestamp,
     );
-  }
 
-  db.MatchHistoryCompanion _historyToCompanion(models.MatchHistoryEntry entry) {
-    return db.MatchHistoryCompanion(
+  db.MatchHistoryCompanion _historyToCompanion(models.MatchHistoryEntry entry) => db.MatchHistoryCompanion(
       id: Value<String>(entry.id),
       p1Id: Value<String>(entry.p1Id),
       p2Id: Value<String>(entry.p2Id),
@@ -645,7 +631,6 @@ class SprintRepositoryImpl implements SprintRepository {
       result: Value<String>(entry.result.toWire()),
       timestamp: Value<int>(entry.timestamp),
     );
-  }
 
   void _setSyncState(models.SyncState state) {
     _syncStateValue = state;

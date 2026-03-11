@@ -13,13 +13,13 @@ import '../test_helpers.dart';
 void main() {
   group('EloEngine', () {
     test('applies expected k-factor deltas for equal ratings', () {
-      final result = EloEngine.apply(1200, 1200, MatchResult.p1, kFactor: 32);
+      final result = EloEngine.apply(1200, 1200, MatchResult.p1);
       expect(result.p1Elo, 1216);
       expect(result.p2Elo, 1184);
     });
 
     test('handles draw when ratings differ', () {
-      final result = EloEngine.apply(1400, 1200, MatchResult.draw, kFactor: 32);
+      final result = EloEngine.apply(1400, 1200, MatchResult.draw);
       expect(result.p1Elo, 1392);
       expect(result.p2Elo, 1208);
     });
@@ -31,13 +31,12 @@ void main() {
       player('b', name: 'B', elo: 1500),
       player('c', name: 'C', elo: 1400),
       player('d', name: 'D', elo: 1300),
-      player('e', name: 'E', elo: 1200),
+      player('e', name: 'E'),
     ];
 
     test('random strategy creates odd-player duplicate pairing', () {
       final pairs = PairingEngine.generate(
         players,
-        strategy: PairingStrategy.random,
         random: Random(7),
       );
 
@@ -96,18 +95,10 @@ void main() {
       final beforeA = player(
         'a',
         name: 'A',
-        elo: 1200,
-        wins: 0,
-        losses: 0,
-        matchesPlayed: 0,
       );
       final beforeB = player(
         'b',
         name: 'B',
-        elo: 1200,
-        wins: 0,
-        losses: 0,
-        matchesPlayed: 0,
       );
       final afterA = beforeA.copyWith(elo: 1216, wins: 1, matchesPlayed: 1);
       final afterB = beforeB.copyWith(elo: 1184, losses: 1, matchesPlayed: 1);

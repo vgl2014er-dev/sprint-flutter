@@ -530,8 +530,7 @@ class _PlayerSelectionGridHeader extends StatelessWidget {
   final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
+  Widget build(BuildContext context) => Padding(
       padding: const EdgeInsets.all(12),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -567,7 +566,6 @@ class _PlayerSelectionGridHeader extends StatelessWidget {
         },
       ),
     );
-  }
 }
 
 class _PlayerSelectionGrid extends StatelessWidget {

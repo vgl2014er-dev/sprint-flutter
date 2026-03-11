@@ -300,8 +300,7 @@ class Player {
     int? losses,
     int? draws,
     int? matchesPlayed,
-  }) {
-    return Player(
+  }) => Player(
       id: id ?? this.id,
       name: name ?? this.name,
       elo: elo ?? this.elo,
@@ -310,10 +309,8 @@ class Player {
       draws: draws ?? this.draws,
       matchesPlayed: matchesPlayed ?? this.matchesPlayed,
     );
-  }
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'id': id,
       'name': name,
       'elo': elo,
@@ -322,10 +319,8 @@ class Player {
       'draws': draws,
       'matchesPlayed': matchesPlayed,
     };
-  }
 
-  factory Player.fromJson(Map<String, Object?> json) {
-    return Player(
+  factory Player.fromJson(Map<String, Object?> json) => Player(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       elo: _toInt(json['elo'], 1200),
@@ -334,11 +329,9 @@ class Player {
       draws: _toInt(json['draws'], 0),
       matchesPlayed: _toInt(json['matchesPlayed'], 0),
     );
-  }
 
   @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
+  bool operator ==(Object other) => identical(this, other) ||
         other is Player &&
             id == other.id &&
             name == other.name &&
@@ -347,12 +340,9 @@ class Player {
             losses == other.losses &&
             draws == other.draws &&
             matchesPlayed == other.matchesPlayed;
-  }
 
   @override
-  int get hashCode {
-    return Object.hash(id, name, elo, wins, losses, draws, matchesPlayed);
-  }
+  int get hashCode => Object.hash(id, name, elo, wins, losses, draws, matchesPlayed);
 }
 
 class MatchHistoryEntry {
@@ -382,8 +372,7 @@ class MatchHistoryEntry {
   final MatchResult result;
   final int timestamp;
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'id': id,
       'p1Id': p1Id,
       'p2Id': p2Id,
@@ -396,10 +385,8 @@ class MatchHistoryEntry {
       'result': result.toWire(),
       'timestamp': timestamp,
     };
-  }
 
-  factory MatchHistoryEntry.fromJson(Map<String, Object?> json) {
-    return MatchHistoryEntry(
+  factory MatchHistoryEntry.fromJson(Map<String, Object?> json) => MatchHistoryEntry(
       id: (json['id'] ?? '').toString(),
       p1Id: (json['p1Id'] ?? '').toString(),
       p2Id: (json['p2Id'] ?? '').toString(),
@@ -415,11 +402,9 @@ class MatchHistoryEntry {
         DateTime.now().millisecondsSinceEpoch,
       ),
     );
-  }
 
   @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
+  bool operator ==(Object other) => identical(this, other) ||
         other is MatchHistoryEntry &&
             id == other.id &&
             p1Id == other.p1Id &&
@@ -432,11 +417,9 @@ class MatchHistoryEntry {
             p2EloAfter == other.p2EloAfter &&
             result == other.result &&
             timestamp == other.timestamp;
-  }
 
   @override
-  int get hashCode {
-    return Object.hash(
+  int get hashCode => Object.hash(
       id,
       p1Id,
       p2Id,
@@ -449,7 +432,6 @@ class MatchHistoryEntry {
       result,
       timestamp,
     );
-  }
 }
 
 class RoundResultInput {
@@ -492,8 +474,7 @@ class UiRoundMatch {
     bool? isDraw,
     bool? played,
     bool? started,
-  }) {
-    return UiRoundMatch(
+  }) => UiRoundMatch(
       id: id ?? this.id,
       player1: player1 ?? this.player1,
       player2: player2 ?? this.player2,
@@ -502,10 +483,8 @@ class UiRoundMatch {
       played: played ?? this.played,
       started: started ?? this.started,
     );
-  }
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'id': id,
       'player1': player1.toJson(),
       'player2': player2.toJson(),
@@ -514,10 +493,8 @@ class UiRoundMatch {
       'played': played,
       'started': started,
     };
-  }
 
-  factory UiRoundMatch.fromJson(Map<String, Object?> json) {
-    return UiRoundMatch(
+  factory UiRoundMatch.fromJson(Map<String, Object?> json) => UiRoundMatch(
       id: (json['id'] ?? '').toString(),
       player1: Player.fromJson(
         (json['player1'] as Map?)?.cast<String, Object?>() ??
@@ -532,11 +509,9 @@ class UiRoundMatch {
       played: json['played'] == true,
       started: json['started'] == true,
     );
-  }
 
   @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
+  bool operator ==(Object other) => identical(this, other) ||
         other is UiRoundMatch &&
             id == other.id &&
             player1 == other.player1 &&
@@ -545,12 +520,9 @@ class UiRoundMatch {
             isDraw == other.isDraw &&
             played == other.played &&
             started == other.started;
-  }
 
   @override
-  int get hashCode {
-    return Object.hash(id, player1, player2, winnerId, isDraw, played, started);
-  }
+  int get hashCode => Object.hash(id, player1, player2, winnerId, isDraw, played, started);
 }
 
 class SyncState {
@@ -563,22 +535,18 @@ class SyncState {
     bool? isSyncing,
     int? lastSyncedEpochMillis,
     bool clearLastSynced = false,
-  }) {
-    return SyncState(
+  }) => SyncState(
       isSyncing: isSyncing ?? this.isSyncing,
       lastSyncedEpochMillis: clearLastSynced
           ? null
           : (lastSyncedEpochMillis ?? this.lastSyncedEpochMillis),
     );
-  }
 
   @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
+  bool operator ==(Object other) => identical(this, other) ||
         other is SyncState &&
             isSyncing == other.isSyncing &&
             lastSyncedEpochMillis == other.lastSyncedEpochMillis;
-  }
 
   @override
   int get hashCode => Object.hash(isSyncing, lastSyncedEpochMillis);
@@ -590,27 +558,21 @@ class DiscoveredHost {
   final String endpointId;
   final String displayName;
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'endpointId': endpointId,
       'displayName': displayName,
     };
-  }
 
-  factory DiscoveredHost.fromJson(Map<String, Object?> json) {
-    return DiscoveredHost(
+  factory DiscoveredHost.fromJson(Map<String, Object?> json) => DiscoveredHost(
       endpointId: (json['endpointId'] ?? '').toString(),
       displayName: (json['displayName'] ?? '').toString(),
     );
-  }
 
   @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
+  bool operator ==(Object other) => identical(this, other) ||
         other is DiscoveredHost &&
             endpointId == other.endpointId &&
             displayName == other.displayName;
-  }
 
   @override
   int get hashCode => Object.hash(endpointId, displayName);
@@ -658,8 +620,7 @@ class LocalSessionState {
     bool clearLastLocalUpdateEpochMillis = false,
     String? errorMessage,
     bool clearErrorMessage = false,
-  }) {
-    return LocalSessionState(
+  }) => LocalSessionState(
       role: role ?? this.role,
       phase: phase ?? this.phase,
       connectionMedium: connectionMedium ?? this.connectionMedium,
@@ -681,10 +642,8 @@ class LocalSessionState {
           ? null
           : (errorMessage ?? this.errorMessage),
     );
-  }
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'role': role.toWire(),
       'phase': phase.toWire(),
       'connectionMedium': connectionMedium.toWire(),
@@ -698,7 +657,6 @@ class LocalSessionState {
       'lastLocalUpdateEpochMillis': lastLocalUpdateEpochMillis,
       'errorMessage': errorMessage,
     };
-  }
 
   factory LocalSessionState.fromJson(Map<String, Object?> json) {
     final discoveredHostsRaw = (json['discoveredHosts'] as List?) ?? const [];
@@ -743,8 +701,7 @@ class LocalSessionState {
   }
 
   @override
-  int get hashCode {
-    return Object.hash(
+  int get hashCode => Object.hash(
       role,
       phase,
       connectionMedium,
@@ -756,7 +713,6 @@ class LocalSessionState {
       lastLocalUpdateEpochMillis,
       errorMessage,
     );
-  }
 }
 
 class LocalLeaderboardSnapshot {
@@ -774,8 +730,7 @@ class LocalLeaderboardSnapshot {
   final int? lastSyncedEpochMillis;
   final List<Player> players;
 
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
       'hostDisplayName': hostDisplayName,
       'generatedAtEpochMillis': generatedAtEpochMillis,
       'kFactor': kFactor,
@@ -784,10 +739,8 @@ class LocalLeaderboardSnapshot {
           .map((player) => player.toJson())
           .toList(growable: false),
     };
-  }
 
-  factory LocalLeaderboardSnapshot.fromJson(Map<String, Object?> json) {
-    return LocalLeaderboardSnapshot(
+  factory LocalLeaderboardSnapshot.fromJson(Map<String, Object?> json) => LocalLeaderboardSnapshot(
       hostDisplayName: (json['hostDisplayName'] ?? '').toString(),
       generatedAtEpochMillis: _toInt(json['generatedAtEpochMillis'], 0),
       kFactor: _toInt(json['kFactor'], 32),
@@ -796,7 +749,6 @@ class LocalLeaderboardSnapshot {
           .map((item) => Player.fromJson((item as Map).cast<String, Object?>()))
           .toList(growable: false),
     );
-  }
 
   @override
   bool operator ==(Object other) {
@@ -811,15 +763,13 @@ class LocalLeaderboardSnapshot {
   }
 
   @override
-  int get hashCode {
-    return Object.hash(
+  int get hashCode => Object.hash(
       hostDisplayName,
       generatedAtEpochMillis,
       kFactor,
       lastSyncedEpochMillis,
       const DeepCollectionEquality().hash(players),
     );
-  }
 }
 
 class HeadToHeadSummary {
@@ -893,18 +843,14 @@ class AppState {
   final String? deathMatchByePlayerId;
   final String? deathMatchChampionId;
 
-  bool get isLocalClientMode {
-    return leaderboardSource == LeaderboardSource.local &&
+  bool get isLocalClientMode => leaderboardSource == LeaderboardSource.local &&
         localSessionState.role == LocalSessionRole.client &&
         localSessionState.phase == LocalSessionPhase.connected;
-  }
 
   bool get isReadOnlyClientMode => isLocalClientMode;
 
-  bool get isStandardSession {
-    return standardSessionStrategy != null &&
+  bool get isStandardSession => standardSessionStrategy != null &&
         standardSessionParticipantIds.length >= 2;
-  }
 
   bool get isStandardSessionComplete {
     if (!isStandardSession) {
@@ -947,8 +893,7 @@ class AppState {
     bool clearDeathMatchByePlayerId = false,
     String? deathMatchChampionId,
     bool clearDeathMatchChampionId = false,
-  }) {
-    return AppState(
+  }) => AppState(
       players: players ?? this.players,
       history: history ?? this.history,
       syncState: syncState ?? this.syncState,
@@ -996,10 +941,8 @@ class AppState {
           ? null
           : (deathMatchChampionId ?? this.deathMatchChampionId),
     );
-  }
 
-  static AppState initial() {
-    return const AppState(
+  static AppState initial() => const AppState(
       players: <Player>[],
       history: <MatchHistoryEntry>[],
       syncState: SyncState(),
@@ -1026,7 +969,6 @@ class AppState {
       deathMatchByePlayerId: null,
       deathMatchChampionId: null,
     );
-  }
 
   @override
   bool operator ==(Object other) {

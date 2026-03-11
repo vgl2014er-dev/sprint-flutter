@@ -145,9 +145,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
   );
 }
 
-ThemeMode toThemeMode(AppThemePreference preference) {
-  return switch (preference) {
+ThemeMode toThemeMode(AppThemePreference preference) => switch (preference) {
     AppThemePreference.light => ThemeMode.light,
     AppThemePreference.dark => ThemeMode.dark,
   };
-}

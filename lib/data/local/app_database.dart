@@ -65,13 +65,11 @@ class AppSettings extends Table {
   Set<Column<Object>> get primaryKey => <Column<Object>>{key};
 }
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
+LazyDatabase _openConnection() => LazyDatabase(() async {
     final directory = await getApplicationDocumentsDirectory();
     final file = File(path.join(directory.path, 'sprint_elo.sqlite'));
     return NativeDatabase.createInBackground(file);
   });
-}
 
 @DriftDatabase(tables: <Type>[Players, MatchHistory, AppSettings])
 class AppDatabase extends _$AppDatabase {
@@ -83,31 +81,23 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 1;
 
-  Stream<List<Player>> watchPlayers() {
-    return (select(players)).watch();
-  }
+  Stream<List<Player>> watchPlayers() => (select(players)).watch();
 
-  Stream<List<MatchHistoryData>> watchHistory() {
-    return (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
+  Stream<List<MatchHistoryData>> watchHistory() => (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
           (table) => OrderingTerm.desc(table.timestamp),
         ]))
         .watch();
-  }
 
   Future<List<Player>> getPlayers() => select(players).get();
 
-  Future<List<MatchHistoryData>> getHistory() {
-    return (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
+  Future<List<MatchHistoryData>> getHistory() => (select(matchHistory)..orderBy(<OrderingTerm Function(MatchHistory)>[
           (table) => OrderingTerm.desc(table.timestamp),
         ]))
         .get();
-  }
 
-  Future<MatchHistoryData?> getHistoryById(String id) {
-    return (select(
+  Future<MatchHistoryData?> getHistoryById(String id) => (select(
       matchHistory,
     )..where((table) => table.id.equals(id))).getSingleOrNull();
-  }
 
   Future<void> upsertPlayers(List<PlayersCompanion> companions) async {
     await batch((batch) {
@@ -125,18 +115,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearHistory() => delete(matchHistory).go();
 
-  Future<void> deleteHistoryById(String id) {
-    return (delete(matchHistory)..where((table) => table.id.equals(id))).go();
-  }
+  Future<void> deleteHistoryById(String id) => (delete(matchHistory)..where((table) => table.id.equals(id))).go();
 
-  Future<void> setSetting(String key, String value) {
-    return into(appSettings).insertOnConflictUpdate(
+  Future<void> setSetting(String key, String value) => into(appSettings).insertOnConflictUpdate(
       AppSettingsCompanion(
         key: Value<String>(key),
         value: Value<String>(value),
       ),
     );
-  }
 
   Future<String?> getSetting(String key) async {
     final row = await (select(
@@ -145,7 +131,5 @@ class AppDatabase extends _$AppDatabase {
     return row?.value;
   }
 
-  Future<void> transactionRun(Future<void> Function() action) {
-    return transaction(action);
-  }
+  Future<void> transactionRun(Future<void> Function() action) => transaction(action);
 }
