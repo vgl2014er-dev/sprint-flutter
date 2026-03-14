@@ -77,17 +77,25 @@ class _OfflineMirrorSetupCardState extends State<OfflineMirrorSetupCard> {
         hasDiscoveredHosts;
     final showExpandedBody = showConnectFlow || widget.isLocalSource;
 
+    final bool isDisconnectedState =
+        phase == LocalSessionPhase.idle ||
+        phase == LocalSessionPhase.error ||
+        phase == LocalSessionPhase.disconnected;
+
+    // Use a clean slate/white design block
     return AnimatedSize(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       alignment: Alignment.topCenter,
       child: Container(
-        margin: const EdgeInsets.only(top: 12),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(top: 8), // mt-2 from React
+        padding: const EdgeInsets.all(20), // p-5
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          border: Border.all(color: tokens.footerBorder),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          border: Border.all(
+            color: const Color(0xFFE2E8F0),
+          ), // border-slate-200
+          borderRadius: BorderRadius.circular(12), // rounded-xl
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,37 +103,156 @@ class _OfflineMirrorSetupCardState extends State<OfflineMirrorSetupCard> {
             Text(
               'Offline Mirror',
               style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF111827), // text-gray-900
+                fontSize: 18,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              _statusText(state),
-              style: textTheme.bodySmall?.copyWith(color: tokens.mutedText),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                OutlinedButton.icon(
-                  onPressed: localActive
-                      ? widget.onStopLocalDisplay
-                      : widget.onStartLocalDisplay,
-                  icon: Icon(
-                    localActive ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                  ),
-                  label: Text(localActive ? 'Stop' : 'Host'),
+
+            if (state.errorMessage != null &&
+                state.errorMessage!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2), // bg-red-50
+                  border: Border.all(
+                    color: const Color(0xFFFECACA),
+                  ), // border-red-200
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                if (!localActive)
-                  OutlinedButton.icon(
-                    onPressed: _startConnectFlow,
-                    icon: const Icon(Icons.wifi_tethering_rounded),
-                    label: const Text('Connect'),
+                child: Text(
+                  state.errorMessage!,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFDC2626), // text-red-600
                   ),
-              ],
-            ),
-            if (showExpandedBody) ...<Widget>[
+                ),
+              ),
+            ],
+
+            if (isDisconnectedState) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 16),
+                child: Text(
+                  'A nearby second device can mirror the leaderboard without internet.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B), // slate-500
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: widget.onStartLocalDisplay,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 16,
+                              color: Color(0xFF111827),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Host',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF111827),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _startConnectFlow,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.wifi_rounded,
+                              size: 16,
+                              color: Color(0xFF111827),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Connect',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF111827),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            if (phase == LocalSessionPhase.advertising) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 16),
+                child: Text(
+                  'Hosting nearby mirror as ${state.localEndpointName ?? 'Sprint Device'}. Waiting for connections...',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B), // slate-500
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: widget.onStopLocalDisplay,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.stop_rounded,
+                        size: 16,
+                        color: Color(0xFF111827),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Stop Host',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            if (showExpandedBody &&
+                !isDisconnectedState &&
+                phase != LocalSessionPhase.advertising) ...<Widget>[
               const SizedBox(height: 10),
               ClipRect(
                 child: AnimatedSwitcher(

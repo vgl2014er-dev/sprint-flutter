@@ -126,28 +126,71 @@ class _ActionCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final tokens = context.sprintTokens;
     final resolvedAccent = accent ?? Theme.of(context).colorScheme.primary;
-    final avatarBackgroundColor = accent == null
-        ? tokens.neutralChip
-        : resolvedAccent.withValues(alpha: 0.15);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
+    final isDeathMatch = title.toLowerCase().contains('death match');
+    final avatarBackgroundColor = isDeathMatch
+        ? const Color(0xFFFEE2E2) // bg-red-100
+        : const Color(0xFFDBEAFE); // bg-blue-100
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: avatarBackgroundColor,
-          child: Icon(icon, color: resolvedAccent),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: const Color(0xFFE2E8F0)), // border-slate-200
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: avatarBackgroundColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: resolvedAccent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF111827), // text-gray-900
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B), // text-slate-500
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF94A3B8), // text-slate-400
+                size: 20,
+              ),
+            ],
+          ),
         ),
-        title: Text(
-          title,
-          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }

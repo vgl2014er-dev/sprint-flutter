@@ -149,9 +149,12 @@ class _StandardSessionCompleteState extends StatelessWidget {
   }
 }
 
-int _survivorsCount(AppState state) => state.deathMatchParticipantIds.where((id) {
-    return (state.deathMatchLossesByPlayerId[id] ?? 0) < state.deathMatchLives;
-  }).length;
+int _survivorsCount(AppState state) => state.deathMatchParticipantIds
+    .where(
+      (id) =>
+          (state.deathMatchLossesByPlayerId[id] ?? 0) < state.deathMatchLives,
+    )
+    .length;
 
 class _MatchCard extends StatelessWidget {
   const _MatchCard({
@@ -256,6 +259,7 @@ class _MatchCard extends StatelessWidget {
                         : null,
                     active: match.played && match.winnerId == match.player1.id,
                     enabled: !match.played,
+                    buttonType: _ResultButtonType.p1,
                     onPressed: onP1,
                   ),
                   const SizedBox(height: 8),
@@ -271,6 +275,7 @@ class _MatchCard extends StatelessWidget {
                         : null,
                     active: match.played && match.winnerId == match.player2.id,
                     enabled: !match.played,
+                    buttonType: _ResultButtonType.p2,
                     onPressed: onP2,
                   ),
                   const SizedBox(height: 8),
@@ -279,6 +284,7 @@ class _MatchCard extends StatelessWidget {
                     subtitle: 'No Elo winner',
                     active: match.played && match.isDraw,
                     enabled: !match.played,
+                    buttonType: _ResultButtonType.draw,
                     onPressed: onDraw,
                   ),
                 ],
@@ -294,8 +300,13 @@ class _MatchCard extends StatelessWidget {
     if (history.isEmpty) {
       return 0;
     }
-    final wins = history.where((entry) => (entry.p1Id == playerId && entry.result == MatchResult.p1) ||
-          (entry.p2Id == playerId && entry.result == MatchResult.p2)).length;
+    final wins = history
+        .where(
+          (entry) =>
+              (entry.p1Id == playerId && entry.result == MatchResult.p1) ||
+              (entry.p2Id == playerId && entry.result == MatchResult.p2),
+        )
+        .length;
     return wins / history.length * 100;
   }
 
@@ -367,34 +378,39 @@ class _PreStartMatchup extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    return Column(
+    return Row(
       children: <Widget>[
-        Text(
-          player1Name.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-            color: scheme.primary,
+        Expanded(
+          child: Text(
+            player1Name.toUpperCase(),
+            textAlign: TextAlign.right,
+            style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 32, // ≈ text-4xl
+              color: const Color(0xFF3B82F6), // text-sky-500
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'VS',
-          textAlign: TextAlign.center,
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: scheme.outline,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'VS',
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 20, // max text-xl
+              color: const Color(0xFF94A3B8), // text-slate-400
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          player2Name.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-            color: scheme.error,
+        Expanded(
+          child: Text(
+            player2Name.toUpperCase(),
+            textAlign: TextAlign.left,
+            style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 32, // ≈ text-4xl
+              color: const Color(0xFFDC2626), // text-red-600
+            ),
           ),
         ),
       ],
@@ -410,6 +426,7 @@ class _ResultButton extends StatelessWidget {
     required this.active,
     required this.enabled,
     required this.onPressed,
+    required this.buttonType,
   });
 
   final String label;
@@ -418,41 +435,98 @@ class _ResultButton extends StatelessWidget {
   final bool active;
   final bool enabled;
   final VoidCallback onPressed;
+  final _ResultButtonType buttonType;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final tokens = context.sprintTokens;
-    return FilledButton.tonal(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(124),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        backgroundColor: active ? tokens.success : null,
-      ),
-      onPressed: enabled ? onPressed : null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            label,
-            style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-              fontSize: 24,
+
+    Color activeBg, inactiveBorder, inactiveText, inactiveHoverBg;
+
+    switch (buttonType) {
+      case _ResultButtonType.p1:
+        activeBg = const Color(0xFF3B82F6); // bg-sky-500
+        inactiveBorder = const Color(0x803B82F6); // border-sky-500/50
+        inactiveText = const Color(0xFF3B82F6); // text-sky-500
+        inactiveHoverBg = const Color(0xFFDBEAFE); // hover:bg-sky-100
+        break;
+      case _ResultButtonType.p2:
+        activeBg = const Color(0xFFDC2626); // bg-red-600
+        inactiveBorder = const Color(0x80DC2626); // border-red-600/50
+        inactiveText = const Color(0xFFDC2626); // text-red-600
+        inactiveHoverBg = const Color(0xFFFEE2E2); // hover:bg-red-100
+        break;
+      case _ResultButtonType.draw:
+        activeBg = const Color(0xFF94A3B8); // bg-slate-400
+        inactiveBorder = const Color(0xFF94A3B8); // border-slate-400
+        inactiveText = const Color(0xFF64748B); // text-slate-500
+        inactiveHoverBg = const Color(0xFFF1F5F9); // hover:bg-slate-100
+        break;
+    }
+
+    final Color currentBg = active ? activeBg : Colors.transparent;
+    final Color currentText = active ? Colors.white : inactiveText;
+    final BorderSide border = active
+        ? BorderSide.none
+        : BorderSide(color: inactiveBorder, width: 2);
+
+    return Opacity(
+      opacity: !enabled && !active ? 0.5 : 1.0,
+      child: Material(
+        color: currentBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12), // rounded-xl
+          side: border,
+        ),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          hoverColor: active ? Colors.transparent : inactiveHoverBg,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 128, // h-32
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 24, // text-2xl
+                    color: currentText,
+                  ),
+                ),
+                const SizedBox(height: 8), // mt-2
+                Text(
+                  subtitle,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontSize: 14, // text-sm
+                    fontWeight: FontWeight.w400,
+                    color: currentText.withValues(alpha: active ? 0.8 : 0.6),
+                  ),
+                ),
+                if (detail != null) const SizedBox(height: 8),
+                if (detail case final Widget extraDetail) extraDetail,
+                if (active) ...[
+                  const SizedBox(height: 16), // mt-4
+                  Text(
+                    'RECORDED',
+                    style: textTheme.labelSmall?.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.0, // tracking-widest
+                      color: currentText,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: textTheme.titleMedium?.copyWith(
-              fontSize: 19,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (detail != null) const SizedBox(height: 8),
-          if (detail case final Widget extraDetail) extraDetail,
-        ],
+        ),
       ),
     );
   }
 }
+
+enum _ResultButtonType { p1, p2, draw }

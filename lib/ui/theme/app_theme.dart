@@ -7,41 +7,43 @@ import 'sprint_theme_tokens.dart';
 ThemeData buildSprintTheme(Brightness brightness) {
   final isLight = brightness == Brightness.light;
   final seededScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF0D47A1),
+    seedColor: const Color(0xFF3B82F6), // tailwind blue-500
     brightness: brightness,
   );
   final scheme = seededScheme.copyWith(
-    secondary: const Color(0xFFFFC107),
-    onSecondary: const Color(0xFF212121),
+    primary: const Color(0xFF3B82F6), // blue-500
+    onPrimary: Colors.white,
+    secondary: const Color(0xFFDC2626), // red-600
+    onSecondary: Colors.white,
     secondaryContainer: isLight
-        ? const Color(0xFFFFECB3)
-        : const Color(0xFF5A4300),
+        ? const Color(0xFFFEE2E2) // red-100
+        : const Color(0xFF7F1D1D), // red-900
     onSecondaryContainer: isLight
-        ? const Color(0xFF2A1800)
-        : const Color(0xFFFFE08A),
+        ? const Color(0xFF991B1B) // red-800
+        : const Color(0xFFFECACA), // red-200
   );
   final tokens = isLight ? SprintThemeTokens.light : SprintThemeTokens.dark;
 
   final base = ThemeData(useMaterial3: true, colorScheme: scheme);
 
-  final textTheme = GoogleFonts.merriweatherTextTheme(base.textTheme).copyWith(
-    displayLarge: GoogleFonts.oswald(
+  final textTheme = GoogleFonts.rajdhaniTextTheme(base.textTheme).copyWith(
+    displayLarge: GoogleFonts.rajdhani(
       textStyle: base.textTheme.displayLarge,
       fontWeight: FontWeight.w700,
     ),
-    titleLarge: GoogleFonts.oswald(
+    titleLarge: GoogleFonts.rajdhani(
       textStyle: base.textTheme.titleLarge,
       fontWeight: FontWeight.w700,
     ),
-    titleMedium: GoogleFonts.oswald(
+    titleMedium: GoogleFonts.rajdhani(
       textStyle: base.textTheme.titleMedium,
       fontWeight: FontWeight.w600,
     ),
-    bodyLarge: GoogleFonts.merriweather(
+    bodyLarge: GoogleFonts.rajdhani(
       textStyle: base.textTheme.bodyLarge,
       height: 1.5,
     ),
-    bodyMedium: GoogleFonts.merriweather(
+    bodyMedium: GoogleFonts.rajdhani(
       textStyle: base.textTheme.bodyMedium,
       height: 1.4,
     ),
@@ -60,7 +62,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
     cardTheme: CardThemeData(
       color: scheme.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // xl
       elevation: isLight ? 1.5 : 0,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -71,7 +73,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
             return scheme.surfaceContainerHighest;
           }
           if (states.contains(WidgetState.pressed)) {
-            return scheme.primaryContainer;
+            return const Color(0xFF2563EB); // blue-600
           }
           return scheme.primary;
         }),
@@ -81,6 +83,11 @@ ThemeData buildSprintTheme(Brightness brightness) {
           }
           return scheme.onPrimary;
         }),
+        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          )
+        ),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -95,6 +102,11 @@ ThemeData buildSprintTheme(Brightness brightness) {
           return scheme.secondary;
         }),
         foregroundColor: WidgetStateProperty.all<Color>(scheme.onSecondary),
+        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          )
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -106,6 +118,11 @@ ThemeData buildSprintTheme(Brightness brightness) {
           return BorderSide(color: scheme.outlineVariant);
         }),
         foregroundColor: WidgetStateProperty.all<Color>(scheme.onSurface),
+        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          )
+        ),
       ),
     ),
     chipTheme: base.chipTheme.copyWith(

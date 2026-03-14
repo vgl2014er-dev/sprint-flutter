@@ -37,39 +37,39 @@ class SprintThemeTokens extends ThemeExtension<SprintThemeTokens> {
   final Color inactive;
 
   static const SprintThemeTokens light = SprintThemeTokens(
-    shellBackground: Color(0xFFF1F5F9),
-    headerBackground: Colors.white,
-    footerBorder: Color(0xFFE2E8F0),
-    bannerBackground: Color(0xFFEFF6FF),
-    bannerBorder: Color(0xFF93C5FD),
-    mutedText: Color(0xFF64748B),
-    playerName: Color(0xFF111827),
-    neutralChip: Color(0xFFE5E7EB),
-    selectedCard: Color(0xFFE2E8F0),
-    localPanelBackground: Color(0xFFEFF6FF),
-    localPanelBorder: Color(0xFF93C5FD),
-    success: Color(0xFF16A34A),
-    warning: Color(0xFFF59E0B),
-    danger: Color(0xFFDC2626),
-    inactive: Color(0xFF94A3B8),
+    shellBackground: Color(0xFFF1F5F9), // tailwind slate-100
+    headerBackground: Color(0xFFF1F5F9), // tailwind slate-100
+    footerBorder: Color(0xFFE2E8F0), // tailwind slate-200
+    bannerBackground: Color(0xFFEFF6FF), // tailwind blue-50
+    bannerBorder: Color(0xFF93C5FD), // tailwind blue-300
+    mutedText: Color(0xFF64748B), // tailwind slate-500
+    playerName: Color(0xFF111827), // tailwind gray-900
+    neutralChip: Color(0xFFE5E7EB), // tailwind gray-200
+    selectedCard: Color(0xFFE2E8F0), // tailwind slate-200
+    localPanelBackground: Color(0xFFEFF6FF), // tailwind blue-50
+    localPanelBorder: Color(0xFF93C5FD), // tailwind blue-300
+    success: Color(0xFF10B981), // tailwind emerald-500
+    warning: Color(0xFFF59E0B), // tailwind amber-500
+    danger: Color(0xFFDC2626), // tailwind red-600
+    inactive: Color(0xFF94A3B8), // tailwind slate-400
   );
 
   static const SprintThemeTokens dark = SprintThemeTokens(
-    shellBackground: Color(0xFF0B1220),
-    headerBackground: Color(0xFF111827),
-    footerBorder: Color(0xFF27344D),
-    bannerBackground: Color(0xFF1E293B),
-    bannerBorder: Color(0xFF334155),
-    mutedText: Color(0xFF94A3B8),
-    playerName: Color(0xFFE2E8F0),
-    neutralChip: Color(0xFF334155),
-    selectedCard: Color(0xFF1E293B),
-    localPanelBackground: Color(0xFF1E293B),
-    localPanelBorder: Color(0xFF334155),
-    success: Color(0xFF22C55E),
-    warning: Color(0xFFFBBF24),
-    danger: Color(0xFFF87171),
-    inactive: Color(0xFF64748B),
+    shellBackground: Color(0xFF000000), // true black
+    headerBackground: Color(0xFF000000), // true black
+    footerBorder: Color(0xFF334155), // tailwind slate-700
+    bannerBackground: Color(0xFF1E293B), // tailwind slate-800
+    bannerBorder: Color(0xFF334155), // tailwind slate-700
+    mutedText: Color(0xFF94A3B8), // tailwind slate-400
+    playerName: Color(0xFFF1F5F9), // tailwind slate-100
+    neutralChip: Color(0xFF334155), // tailwind slate-700
+    selectedCard: Color(0xFF1E293B), // tailwind slate-800
+    localPanelBackground: Color(0xFF1E293B), // tailwind slate-800
+    localPanelBorder: Color(0xFF334155), // tailwind slate-700
+    success: Color(0xFF22C55E), // tailwind green-500
+    warning: Color(0xFFFBBF24), // tailwind amber-400
+    danger: Color(0xFFF87171), // tailwind red-400
+    inactive: Color(0xFF64748B), // tailwind slate-500
   );
 
   @override
@@ -109,7 +109,7 @@ class SprintThemeTokens extends ThemeExtension<SprintThemeTokens> {
 
   @override
   ThemeExtension<SprintThemeTokens> lerp(
-    covariant ThemeExtension<SprintThemeTokens>? other,
+    ThemeExtension<SprintThemeTokens>? other,
     double t,
   ) {
     if (other is! SprintThemeTokens) {
