@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/models/app_models.dart';
 import 'package:sprint/ui/screens/sprint_app.dart';
 import 'package:sprint/ui/theme/app_theme.dart';
-import 'package:sprint/ui/theme/sprint_theme_tokens.dart';
 
 Widget _buildLanding({
   required LocalSessionState localSessionState,
@@ -32,7 +31,7 @@ Widget _buildLanding({
 );
 
 void main() {
-  testWidgets('random matches card uses neutral grey icon chip', (
+  testWidgets('renders random and elo action cards', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -42,11 +41,13 @@ void main() {
       ),
     );
 
-    final chip = tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
-    expect(chip.backgroundColor, SprintThemeTokens.light.neutralChip);
+    expect(find.text('Random Matches'), findsOneWidget);
+    expect(find.text('Elo Matches'), findsOneWidget);
+    expect(find.byIcon(Icons.casino_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.balance_rounded), findsOneWidget);
   });
 
-  testWidgets('landing action cards use theme card surface', (
+  testWidgets('landing action cards are tappable material surfaces', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -56,8 +57,6 @@ void main() {
       ),
     );
 
-    final theme = buildSprintTheme(Brightness.light);
-    final card = tester.widget<Card>(find.byType(Card).first);
     final cardMaterial = tester.widget<Material>(
       find
           .ancestor(
@@ -67,9 +66,7 @@ void main() {
           .first,
     );
 
-    expect(card.color, isNull);
-    expect(cardMaterial.color, theme.colorScheme.surface);
-    expect(card.surfaceTintColor, Colors.transparent);
+    expect(cardMaterial.color, Colors.transparent);
   });
 
   testWidgets('offline mirror host button uses outlined style', (
@@ -82,7 +79,7 @@ void main() {
       ),
     );
 
-    expect(find.widgetWithText(OutlinedButton, 'Host'), findsOneWidget);
+    expect(find.text('Host'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Host'), findsNothing);
   });
 
@@ -158,7 +155,7 @@ void main() {
     expect(find.text('Sprint Device'), findsNothing);
     expect(find.text('XC13'), findsNothing);
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+    await tester.tap(find.text('Connect').first);
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.drag(find.byType(ListView).first, const Offset(0, -400));

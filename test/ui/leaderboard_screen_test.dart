@@ -54,33 +54,13 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('shows connected transport badge in leaderboard header', (
+  testWidgets('always shows connected-style leaderboard header', (
     WidgetTester tester,
   ) async {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(
         <Player>[player('p1', name: 'Alpha')],
-        localSessionStateOverride: const LocalSessionState(
-          role: LocalSessionRole.client,
-          phase: LocalSessionPhase.connected,
-          connectionMedium: LocalConnectionMedium.wifi,
-        ),
-      ),
-      onViewProfile: (_) {},
-    );
-
-    expect(find.text('WiFi'), findsOneWidget);
-  });
-
-  testWidgets('connected mode shows PWA-style leaderboard title header', (
-    WidgetTester tester,
-  ) async {
-    await pumpLeaderboard(
-      tester,
-      state: stateWithPlayers(
-        <Player>[player('p1', name: 'Alpha')],
-        readOnlyClient: true,
         localSessionStateOverride: const LocalSessionState(
           role: LocalSessionRole.client,
           phase: LocalSessionPhase.connected,
@@ -95,7 +75,21 @@ void main() {
     expect(find.text('WiFi'), findsNothing);
   });
 
-  testWidgets('connected cards are square while default cards stay rounded', (
+  testWidgets(
+    'disconnected/default mode still shows connected-style title header',
+    (WidgetTester tester) async {
+      await pumpLeaderboard(
+        tester,
+        state: stateWithPlayers(<Player>[player('p1', name: 'Alpha')]),
+        onViewProfile: (_) {},
+      );
+
+      expect(find.text('LEADERBOARD'), findsOneWidget);
+      expect(find.text('SEASON 04 • GLOBAL RANKINGS'), findsOneWidget);
+    },
+  );
+
+  testWidgets('leaderboard cards stay square in both client and default mode', (
     WidgetTester tester,
   ) async {
     await pumpLeaderboard(
@@ -113,16 +107,14 @@ void main() {
 
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(<Player>[
-        player('p0', name: 'Alpha'),
-      ]),
+      state: stateWithPlayers(<Player>[player('p0', name: 'Alpha')]),
       onViewProfile: (_) {},
     );
     final defaultCard = tester.widget<Container>(
       find.byKey(const Key('leaderboard-highlight-row-p0')),
     );
     final defaultDecoration = defaultCard.decoration! as BoxDecoration;
-    expect(defaultDecoration.borderRadius, BorderRadius.circular(8));
+    expect(defaultDecoration.borderRadius, BorderRadius.circular(0));
   });
 
   testWidgets('sorts rows by Elo descending', (WidgetTester tester) async {
@@ -250,23 +242,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('default mode remains scrollable and row tap is interactive', (
-    WidgetTester tester,
-  ) async {
-    final players = List<Player>.generate(
-      20,
-      (index) => player('p$index', name: 'Player $index', elo: 2000 - index),
-    );
-    String? selectedId;
-    await pumpLeaderboard(
-      tester,
-      state: stateWithPlayers(players),
-      onViewProfile: (player) => selectedId = player.id,
-    );
+  testWidgets(
+    'default mode keeps connected layout and row tap is interactive',
+    (WidgetTester tester) async {
+      final players = List<Player>.generate(
+        20,
+        (index) => player('p$index', name: 'Player $index', elo: 2000 - index),
+      );
+      String? selectedId;
+      await pumpLeaderboard(
+        tester,
+        state: stateWithPlayers(players),
+        onViewProfile: (player) => selectedId = player.id,
+      );
 
-    expect(find.byType(CustomScrollView), findsOneWidget);
-    await tester.tap(find.text('Player 0'));
-    await tester.pump();
-    expect(selectedId, 'p0');
-  });
+      expect(find.byType(CustomScrollView), findsNothing);
+      expect(find.text('LEADERBOARD'), findsOneWidget);
+      await tester.tap(find.text('Player 0'));
+      await tester.pump();
+      expect(selectedId, 'p0');
+    },
+  );
 }

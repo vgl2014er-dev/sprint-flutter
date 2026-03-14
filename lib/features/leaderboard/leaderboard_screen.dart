@@ -25,13 +25,6 @@ class LeaderboardScreen extends StatelessWidget {
     final highlightedPlayerIds = derived.highlightedPlayerIds;
     final latestEloDeltaByPlayerId = derived.latestEloDeltaByPlayerId;
 
-    final useConnectedDisplayForceFit =
-        state.isReadOnlyClientMode &&
-        state.localSessionState.phase == LocalSessionPhase.connected;
-    final connectionBadgeLabel = _connectedTransportLabel(
-      state.localSessionState,
-    );
-
     _LeaderboardPlayerRow buildPlayerRow(
       Player player,
       int index, {
@@ -61,255 +54,112 @@ class LeaderboardScreen extends StatelessWidget {
         Expanded(
           child: Column(
             children: <Widget>[
-              if (useConnectedDisplayForceFit)
-                const _ConnectedLeaderboardHeader()
-              else ...<Widget>[
-                _LeaderboardHeaderRow(
-                  connectionBadgeLabel: connectionBadgeLabel,
-                ),
-                const Divider(height: 1),
-              ],
+              const _ConnectedLeaderboardHeader(),
               Expanded(
-                child: useConnectedDisplayForceFit
-                    ? LayoutBuilder(
-                        builder: (context, constraints) {
-                          final totalPlayers = sortedPlayers.length;
-                          final availableHeight = constraints.maxHeight;
-                          final fullWidthCount =
-                              _connectedFullWidthCountForAvailableHeight(
-                                playerCount: totalPlayers,
-                                availableHeight: availableHeight,
-                              );
-                          final scale = _connectedScaleForAvailableHeight(
-                            playerCount: totalPlayers,
-                            fullWidthCount: fullWidthCount,
-                            availableHeight: availableHeight,
-                          );
-                          final rowHeightScale = scale;
-                          const rowBorderCompensation = 4.0;
-                          final fullRowHeight = math.max(
-                            8.0,
-                            (_connectedFullBaseHeight * rowHeightScale) -
-                                rowBorderCompensation,
-                          );
-                          final halfRowHeight = math.max(
-                            8.0,
-                            (_connectedHalfBaseHeight * rowHeightScale) -
-                                rowBorderCompensation,
-                          );
-                          final fullWidthPlayers = sortedPlayers
-                              .take(fullWidthCount)
-                              .toList(growable: false);
-                          final halfWidthPlayers = sortedPlayers
-                              .skip(fullWidthCount)
-                              .toList(growable: false);
-                          const connectedGap = 0.0;
-                          final layoutWidth = constraints.maxWidth > 1
-                              ? constraints.maxWidth
-                              : 1.0;
-                          final halfWidth = halfWidthPlayers.isEmpty
-                              ? layoutWidth
-                              : (layoutWidth - connectedGap) / 2;
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final totalPlayers = sortedPlayers.length;
+                    final availableHeight = constraints.maxHeight;
+                    final fullWidthCount =
+                        _connectedFullWidthCountForAvailableHeight(
+                          playerCount: totalPlayers,
+                          availableHeight: availableHeight,
+                        );
+                    final scale = _connectedScaleForAvailableHeight(
+                      playerCount: totalPlayers,
+                      fullWidthCount: fullWidthCount,
+                      availableHeight: availableHeight,
+                    );
+                    final rowHeightScale = scale;
+                    const rowBorderCompensation = 4.0;
+                    final fullRowHeight = math.max(
+                      8.0,
+                      (_connectedFullBaseHeight * rowHeightScale) -
+                          rowBorderCompensation,
+                    );
+                    final halfRowHeight = math.max(
+                      8.0,
+                      (_connectedHalfBaseHeight * rowHeightScale) -
+                          rowBorderCompensation,
+                    );
+                    final fullWidthPlayers = sortedPlayers
+                        .take(fullWidthCount)
+                        .toList(growable: false);
+                    final halfWidthPlayers = sortedPlayers
+                        .skip(fullWidthCount)
+                        .toList(growable: false);
+                    const connectedGap = 0.0;
+                    final layoutWidth = constraints.maxWidth > 1
+                        ? constraints.maxWidth
+                        : 1.0;
+                    final halfWidth = halfWidthPlayers.isEmpty
+                        ? layoutWidth
+                        : (layoutWidth - connectedGap) / 2;
 
-                          final rows = <Widget>[
-                            for (
-                              var index = 0;
-                              index < fullWidthPlayers.length;
-                              index++
-                            )
-                              KeyedSubtree(
-                                key: Key(
-                                  'connected-full-card-${fullWidthPlayers[index].id}',
-                                ),
-                                child: buildPlayerRow(
-                                  fullWidthPlayers[index],
-                                  index,
-                                  rowHeight: fullRowHeight,
-                                  bottomMargin: connectedGap,
-                                  connectedLayout: true,
-                                ),
-                              ),
-                            if (halfWidthPlayers.isNotEmpty)
-                              Wrap(
-                                runSpacing: connectedGap,
-                                children: <Widget>[
-                                  for (
-                                    var halfIndex = 0;
-                                    halfIndex < halfWidthPlayers.length;
-                                    halfIndex++
-                                  )
-                                    SizedBox(
-                                      width: halfWidth,
-                                      child: KeyedSubtree(
-                                        key: Key(
-                                          'connected-half-card-${halfWidthPlayers[halfIndex].id}',
-                                        ),
-                                        child: buildPlayerRow(
-                                          halfWidthPlayers[halfIndex],
-                                          fullWidthCount + halfIndex,
-                                          rowHeight: halfRowHeight,
-                                          bottomMargin: 0,
-                                          connectedHalf: true,
-                                          connectedLayout: true,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                          ];
-
-                          return ClipRect(
-                            child: SizedBox(
-                              width: layoutWidth,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: rows,
-                              ),
-                            ),
-                          );
-                        },
+                    final rows = <Widget>[
+                      for (
+                        var index = 0;
+                        index < fullWidthPlayers.length;
+                        index++
                       )
-                    : MediaQuery.removePadding(
-                        context: context,
-                        removeTop: true,
-                        removeBottom: true,
-                        child: CustomScrollView(
-                          slivers: [
-                            SliverPadding(
-                              padding: EdgeInsets.zero,
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    if (index.isOdd) {
-                                      return const Divider(height: 1);
-                                    }
-                                    final playerIndex = index ~/ 2;
-                                    return buildPlayerRow(
-                                      sortedPlayers[playerIndex],
-                                      playerIndex,
-                                    );
-                                  },
-                                  childCount: math.max(
-                                    0,
-                                    math.min(3, sortedPlayers.length) * 2 - 1,
+                        KeyedSubtree(
+                          key: Key(
+                            'connected-full-card-${fullWidthPlayers[index].id}',
+                          ),
+                          child: buildPlayerRow(
+                            fullWidthPlayers[index],
+                            index,
+                            rowHeight: fullRowHeight,
+                            bottomMargin: connectedGap,
+                            connectedLayout: true,
+                          ),
+                        ),
+                      if (halfWidthPlayers.isNotEmpty)
+                        Wrap(
+                          runSpacing: connectedGap,
+                          children: <Widget>[
+                            for (
+                              var halfIndex = 0;
+                              halfIndex < halfWidthPlayers.length;
+                              halfIndex++
+                            )
+                              SizedBox(
+                                width: halfWidth,
+                                child: KeyedSubtree(
+                                  key: Key(
+                                    'connected-half-card-${halfWidthPlayers[halfIndex].id}',
+                                  ),
+                                  child: buildPlayerRow(
+                                    halfWidthPlayers[halfIndex],
+                                    fullWidthCount + halfIndex,
+                                    rowHeight: halfRowHeight,
+                                    bottomMargin: 0,
+                                    connectedHalf: true,
+                                    connectedLayout: true,
                                   ),
                                 ),
                               ),
-                            ),
-                            if (sortedPlayers.length > 3) ...[
-                              const SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: EdgeInsets.only(bottom: 8.0),
-                                  child: Divider(height: 1),
-                                ),
-                              ),
-                              SliverPadding(
-                                padding: EdgeInsets.zero,
-                                sliver: SliverGrid(
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisExtent:
-                                            84, // matches height of row
-                                        crossAxisSpacing: 8,
-                                        mainAxisSpacing: 8,
-                                      ),
-                                  delegate: SliverChildBuilderDelegate((
-                                    context,
-                                    index,
-                                  ) {
-                                    final playerIndex = index + 3;
-                                    return buildPlayerRow(
-                                      sortedPlayers[playerIndex],
-                                      playerIndex,
-                                    );
-                                  }, childCount: sortedPlayers.length - 3),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
+                    ];
+
+                    return ClipRect(
+                      child: SizedBox(
+                        width: layoutWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: rows,
+                        ),
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _LeaderboardHeaderRow extends StatelessWidget {
-  const _LeaderboardHeaderRow({this.connectionBadgeLabel});
-
-  final String? connectionBadgeLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return ColoredBox(
-      color: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              flex: 16,
-              child: Text(
-                '',
-                style: textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 44,
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      '',
-                      style: textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  if (connectionBadgeLabel case final label?)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _ConnectionMediumBadge(label: label),
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 20,
-              child: Text(
-                '',
-                textAlign: TextAlign.right,
-                style: textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 20,
-              child: Text(
-                '',
-                textAlign: TextAlign.right,
-                style: textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -362,34 +212,6 @@ class _ConnectedLeaderboardHeader extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ConnectionMediumBadge extends StatelessWidget {
-  const _ConnectionMediumBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final tokens = context.sprintTokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: tokens.localPanelBackground.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tokens.localPanelBorder),
-      ),
-      child: Text(
-        label,
-        style: textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-          fontSize: 10,
-          color: tokens.mutedText,
-        ),
       ),
     );
   }
@@ -934,22 +756,6 @@ class _LeaderboardDerivedCache {
     _historyRef = history;
     _cached = computed;
     return computed;
-  }
-}
-
-String? _connectedTransportLabel(LocalSessionState state) {
-  if (state.phase != LocalSessionPhase.connected) {
-    return null;
-  }
-  switch (state.connectionMedium) {
-    case LocalConnectionMedium.ble:
-      return 'BLE';
-    case LocalConnectionMedium.bt:
-      return 'BT';
-    case LocalConnectionMedium.wifi:
-      return 'WiFi';
-    case LocalConnectionMedium.unknown:
-      return null;
   }
 }
 

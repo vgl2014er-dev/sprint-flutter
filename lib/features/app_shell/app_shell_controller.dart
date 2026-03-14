@@ -543,8 +543,7 @@ class SprintController extends StateNotifier<AppState> {
           strategy: strategy,
           random: random,
           recentOpponentByPlayerId: <String, String>{
-            for (final id in belowTargetIds)
-              id: ?recentOpponentByPlayerId[id],
+            for (final id in belowTargetIds) id: ?recentOpponentByPlayerId[id],
           },
           eloBlockByPlayerId: _buildEloBlockByPlayerId(batchPlayers),
         );

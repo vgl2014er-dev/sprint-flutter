@@ -178,7 +178,9 @@ void main() {
     await tester.pumpWidget(buildSubject(buildState(<UiRoundMatch>[match])));
 
     final size = tester.getSize(
-      find.widgetWithText(FilledButton, 'ALICE WINS'),
+      find
+          .ancestor(of: find.text('ALICE WINS'), matching: find.byType(InkWell))
+          .first,
     );
     expect(size.height, greaterThanOrEqualTo(110));
   });
@@ -282,5 +284,4 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'View Home'), findsOneWidget);
     expect(nextRoundCalls, 0);
   });
-
 }

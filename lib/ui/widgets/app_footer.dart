@@ -28,11 +28,6 @@ class AppFooter extends StatelessWidget {
         label: 'Leaderboard',
       ),
       (screen: Screen.playerList, icon: Icons.people_rounded, label: 'Players'),
-      (
-        screen: Screen.settings,
-        icon: Icons.settings_rounded,
-        label: 'Settings',
-      ),
     ];
 
     return Container(

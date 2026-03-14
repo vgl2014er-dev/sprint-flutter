@@ -10,71 +10,68 @@ import 'package:sprint/state/sprint_controller.dart';
 import 'package:sprint/ui/screens/sprint_app.dart';
 
 void main() {
-  Future<void> pumpApp(
+  Future<ProviderContainer> pumpApp(
     WidgetTester tester, {
     required _FakeSprintRepository repository,
     required _FakePlatformAdapter platform,
   }) async {
+    final container = ProviderContainer(
+      overrides: <Override>[
+        sprintRepositoryProvider.overrideWithValue(repository),
+        platformChannelsProvider.overrideWithValue(platform),
+      ],
+    );
+    addTearDown(container.dispose);
+
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: <Override>[
-          sprintRepositoryProvider.overrideWithValue(repository),
-          platformChannelsProvider.overrideWithValue(platform),
-        ],
-        child: const SprintApp(),
-      ),
+      UncontrolledProviderScope(container: container, child: const SprintApp()),
     );
     await tester.pumpAndSettle();
+    return container;
   }
 
-  testWidgets('footer settings opens modal', (WidgetTester tester) async {
-    final repository = _FakeSprintRepository();
-    final platform = _FakePlatformAdapter();
-    await pumpApp(tester, repository: repository, platform: platform);
-
-    await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
-  });
-
-  testWidgets('floating settings button opens modal', (
+  testWidgets('hides settings icon entry points across shell UI', (
     WidgetTester tester,
   ) async {
     final repository = _FakeSprintRepository();
     final platform = _FakePlatformAdapter();
     await pumpApp(tester, repository: repository, platform: platform);
 
-    expect(find.byKey(const Key('settings-fab')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('settings-fab')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
+    expect(find.byKey(const Key('settings-fab')), findsNothing);
+    expect(find.text('Settings'), findsNothing);
   });
 
-  testWidgets('modal closes via close button, backdrop and back action', (
+  testWidgets(
+    'leaderboard screen runs fullscreen without shell header/footer',
+    (WidgetTester tester) async {
+      final repository = _FakeSprintRepository();
+      final platform = _FakePlatformAdapter();
+      await pumpApp(tester, repository: repository, platform: platform);
+
+      await tester.tap(find.text('Leaderboard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('LEADERBOARD'), findsOneWidget);
+      expect(find.byType(AppHeader), findsNothing);
+      expect(find.byType(AppFooter), findsNothing);
+    },
+  );
+
+  testWidgets('programmatically opened settings modal closes on system back', (
     WidgetTester tester,
   ) async {
     final repository = _FakeSprintRepository();
     final platform = _FakePlatformAdapter();
-    await pumpApp(tester, repository: repository, platform: platform);
+    final container = await pumpApp(
+      tester,
+      repository: repository,
+      platform: platform,
+    );
 
-    await tester.tap(find.byKey(const Key('settings-fab')));
+    container.read(sprintControllerProvider.notifier).openSettingsModal();
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('settings-modal-close')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('settings-modal-close')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('settings-fab')));
-    await tester.pumpAndSettle();
-    await tester.tapAt(const Offset(12, 12));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('settings-modal-close')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('settings-fab')));
-    await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('settings-modal-close')), findsNothing);

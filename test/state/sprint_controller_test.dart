@@ -503,7 +503,6 @@ void main() {
         expect(controller.state.roundMatches.single.played, isTrue);
       },
     );
-
   });
 }
 

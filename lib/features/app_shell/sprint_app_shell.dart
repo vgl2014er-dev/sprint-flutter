@@ -56,7 +56,6 @@ class _ShellState {
     required this.isSettingsOpen,
     required this.manualFullscreenEnabled,
     required this.isReadOnlyClientMode,
-    required this.localSessionPhase,
   });
 
   factory _ShellState.fromAppState(AppState state) => _ShellState(
@@ -65,7 +64,6 @@ class _ShellState {
     isSettingsOpen: state.isSettingsOpen,
     manualFullscreenEnabled: state.manualFullscreenEnabled,
     isReadOnlyClientMode: state.isReadOnlyClientMode,
-    localSessionPhase: state.localSessionState.phase,
   );
 
   final Screen screen;
@@ -73,7 +71,6 @@ class _ShellState {
   final bool isSettingsOpen;
   final bool manualFullscreenEnabled;
   final bool isReadOnlyClientMode;
-  final LocalSessionPhase localSessionPhase;
 
   @override
   bool operator ==(Object other) =>
@@ -83,8 +80,7 @@ class _ShellState {
           themePreference == other.themePreference &&
           isSettingsOpen == other.isSettingsOpen &&
           manualFullscreenEnabled == other.manualFullscreenEnabled &&
-          isReadOnlyClientMode == other.isReadOnlyClientMode &&
-          localSessionPhase == other.localSessionPhase;
+          isReadOnlyClientMode == other.isReadOnlyClientMode;
 
   @override
   int get hashCode => Object.hash(
@@ -93,7 +89,6 @@ class _ShellState {
     isSettingsOpen,
     manualFullscreenEnabled,
     isReadOnlyClientMode,
-    localSessionPhase,
   );
 }
 
@@ -176,10 +171,7 @@ class _SprintAppState extends ConsumerState<SprintApp> {
       sprintControllerProvider.select(_ShellState.fromAppState),
     );
     final controller = ref.read(sprintControllerProvider.notifier);
-    final connectedClientFullscreen =
-        shellState.screen == Screen.leaderboard &&
-        shellState.isReadOnlyClientMode &&
-        shellState.localSessionPhase == LocalSessionPhase.connected;
+    final connectedClientFullscreen = shellState.screen == Screen.leaderboard;
     final useFullscreenShell =
         connectedClientFullscreen || shellState.manualFullscreenEnabled;
 
@@ -197,9 +189,6 @@ class _SprintAppState extends ConsumerState<SprintApp> {
         shellState.screen != Screen.matchRunner &&
         shellState.screen != Screen.playerProfile &&
         !useFullscreenShell;
-
-    final showFloatingSettings =
-        !useFullscreenShell && !shellState.isReadOnlyClientMode;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -446,18 +435,10 @@ class _SprintAppState extends ConsumerState<SprintApp> {
                     ),
                 ],
               ),
-              floatingActionButton: showFloatingSettings
-                  ? FloatingActionButton(
-                      key: const Key('settings-fab'),
-                      onPressed: controller.openSettingsModal,
-                      child: const Icon(Icons.settings_rounded),
-                    )
-                  : null,
+              floatingActionButton: null,
               bottomNavigationBar: showFooter
                   ? AppFooter(
-                      currentScreen: shellState.isSettingsOpen
-                          ? Screen.settings
-                          : shellState.screen,
+                      currentScreen: shellState.screen,
                       disabled: shellState.isReadOnlyClientMode,
                       onNavigate: (screen) {
                         if (screen == Screen.settings) {
