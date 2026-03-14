@@ -1,11 +1,1 @@
-export '../widgets/app_footer.dart';
-export '../widgets/app_header.dart';
-export '../widgets/local_approval_banner.dart';
-export 'landing_screen.dart';
-export 'leaderboard_screen.dart';
-export 'match_runner_screen.dart';
-export 'player_list_screen.dart';
-export 'player_profile_screen.dart';
-export 'player_selection_screen.dart';
-export 'settings_screen.dart';
-export 'sprint_app_shell.dart';
+export '../../features/app_shell/sprint_app.dart';

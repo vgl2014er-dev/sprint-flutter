@@ -35,10 +35,7 @@ void main() {
     ];
 
     test('random strategy creates odd-player duplicate pairing', () {
-      final pairs = PairingEngine.generate(
-        players,
-        random: Random(7),
-      );
+      final pairs = PairingEngine.generate(players, random: Random(7));
 
       expect(pairs.length, 3);
 
@@ -92,14 +89,8 @@ void main() {
     });
 
     test('rolls back elo and counters for deleted match', () {
-      final beforeA = player(
-        'a',
-        name: 'A',
-      );
-      final beforeB = player(
-        'b',
-        name: 'B',
-      );
+      final beforeA = player('a', name: 'A');
+      final beforeB = player('b', name: 'B');
       final afterA = beforeA.copyWith(elo: 1216, wins: 1, matchesPlayed: 1);
       final afterB = beforeB.copyWith(elo: 1184, losses: 1, matchesPlayed: 1);
 

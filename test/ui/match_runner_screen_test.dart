@@ -16,44 +16,45 @@ void main() {
     Map<String, int>? scheduledByPlayerId,
     bool deathMatch = false,
   }) => AppState.initial().copyWith(
-      screen: Screen.matchRunner,
-      roundMatches: matches,
-      currentMatchIndex: currentIndex,
-      deathMatchInProgress: deathMatch,
-      standardSessionStrategy: standardSession ? PairingStrategy.random : null,
-      clearStandardSessionStrategy: !standardSession,
-      standardSessionParticipantIds: standardSession
-          ? (participantIds ??
-                matches
-                    .expand(
-                      (match) => <String>[match.player1.id, match.player2.id],
-                    )
-                    .toSet()
-                    .toList(growable: false))
-          : const <String>[],
-      standardSessionTargetMatchesPerPlayer: standardSession
-          ? targetMatchesPerPlayer
-          : 3,
-      standardSessionCompletedMatchesByPlayerId: standardSession
-          ? (completedByPlayerId ?? const <String, int>{})
-          : const <String, int>{},
-      standardSessionScheduledMatchesByPlayerId: standardSession
-          ? (scheduledByPlayerId ?? const <String, int>{})
-          : const <String, int>{},
-    );
+    screen: Screen.matchRunner,
+    roundMatches: matches,
+    currentMatchIndex: currentIndex,
+    deathMatchInProgress: deathMatch,
+    standardSessionStrategy: standardSession ? PairingStrategy.random : null,
+    clearStandardSessionStrategy: !standardSession,
+    standardSessionParticipantIds: standardSession
+        ? (participantIds ??
+              matches
+                  .expand(
+                    (match) => <String>[match.player1.id, match.player2.id],
+                  )
+                  .toSet()
+                  .toList(growable: false))
+        : const <String>[],
+    standardSessionTargetMatchesPerPlayer: standardSession
+        ? targetMatchesPerPlayer
+        : 3,
+    standardSessionCompletedMatchesByPlayerId: standardSession
+        ? (completedByPlayerId ?? const <String, int>{})
+        : const <String, int>{},
+    standardSessionScheduledMatchesByPlayerId: standardSession
+        ? (scheduledByPlayerId ?? const <String, int>{})
+        : const <String, int>{},
+  );
 
-  Widget buildSubject(AppState state, {VoidCallback? onNextRound}) => MaterialApp(
-      home: Scaffold(
-        body: MatchRunnerScreen(
-          state: state,
-          onBack: () {},
-          onClose: () {},
-          onNextRound: onNextRound ?? () {},
-          onStart: (_) {},
-          onResult: (_, _) {},
+  Widget buildSubject(AppState state, {VoidCallback? onNextRound}) =>
+      MaterialApp(
+        home: Scaffold(
+          body: MatchRunnerScreen(
+            state: state,
+            onBack: () {},
+            onClose: () {},
+            onNextRound: onNextRound ?? () {},
+            onStart: (_) {},
+            onResult: (_, _) {},
+          ),
         ),
-      ),
-    );
+      );
 
   testWidgets('shows matchup names and START before match begins', (
     WidgetTester tester,

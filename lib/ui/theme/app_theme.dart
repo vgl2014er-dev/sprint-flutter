@@ -62,7 +62,9 @@ ThemeData buildSprintTheme(Brightness brightness) {
     cardTheme: CardThemeData(
       color: scheme.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // xl
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ), // xl
       elevation: isLight ? 1.5 : 0,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -84,9 +86,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
           return scheme.onPrimary;
         }),
         shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          )
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
       ),
     ),
@@ -103,9 +103,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
         }),
         foregroundColor: WidgetStateProperty.all<Color>(scheme.onSecondary),
         shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          )
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
       ),
     ),
@@ -119,9 +117,7 @@ ThemeData buildSprintTheme(Brightness brightness) {
         }),
         foregroundColor: WidgetStateProperty.all<Color>(scheme.onSurface),
         shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          )
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
         ),
       ),
     ),
@@ -163,6 +159,6 @@ ThemeData buildSprintTheme(Brightness brightness) {
 }
 
 ThemeMode toThemeMode(AppThemePreference preference) => switch (preference) {
-    AppThemePreference.light => ThemeMode.light,
-    AppThemePreference.dark => ThemeMode.dark,
-  };
+  AppThemePreference.light => ThemeMode.light,
+  AppThemePreference.dark => ThemeMode.dark,
+};

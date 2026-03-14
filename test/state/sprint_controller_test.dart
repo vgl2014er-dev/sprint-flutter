@@ -142,6 +142,69 @@ void main() {
     });
 
     test(
+      'auto-suspends remote sync while connected and restores on disconnect',
+      () async {
+        expect(controller.state.remoteSyncEnabled, isTrue);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.host,
+            phase: LocalSessionPhase.connected,
+          ),
+        );
+        await flushState();
+
+        expect(controller.state.remoteSyncEnabled, isFalse);
+        expect(repository.setRemoteSyncEnabledCalls, 1);
+        expect(repository.lastRemoteSyncEnabled, isFalse);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.host,
+            phase: LocalSessionPhase.disconnected,
+          ),
+        );
+        await flushState();
+
+        expect(controller.state.remoteSyncEnabled, isTrue);
+        expect(repository.setRemoteSyncEnabledCalls, 2);
+        expect(repository.lastRemoteSyncEnabled, isTrue);
+      },
+    );
+
+    test(
+      'does not auto-restore remote sync after explicit override while connected',
+      () async {
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.host,
+            phase: LocalSessionPhase.connected,
+          ),
+        );
+        await flushState();
+        expect(controller.state.remoteSyncEnabled, isFalse);
+        expect(repository.setRemoteSyncEnabledCalls, 1);
+
+        controller.toggleRemoteSync(true);
+        await flushState();
+        expect(controller.state.remoteSyncEnabled, isTrue);
+        expect(repository.setRemoteSyncEnabledCalls, 2);
+        expect(repository.lastRemoteSyncEnabled, isTrue);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.host,
+            phase: LocalSessionPhase.disconnected,
+          ),
+        );
+        await flushState();
+
+        expect(repository.setRemoteSyncEnabledCalls, 2);
+        expect(controller.state.remoteSyncEnabled, isTrue);
+      },
+    );
+
+    test(
       'sends start-match beep control only when host is connected and enabled',
       () async {
         final started = controller.generateMatches(

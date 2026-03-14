@@ -1,0 +1,3 @@
+class PlayerListController {
+  const PlayerListController();
+}

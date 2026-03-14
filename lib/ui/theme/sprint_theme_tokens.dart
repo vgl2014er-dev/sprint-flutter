@@ -90,22 +90,22 @@ class SprintThemeTokens extends ThemeExtension<SprintThemeTokens> {
     Color? danger,
     Color? inactive,
   }) => SprintThemeTokens(
-      shellBackground: shellBackground ?? this.shellBackground,
-      headerBackground: headerBackground ?? this.headerBackground,
-      footerBorder: footerBorder ?? this.footerBorder,
-      bannerBackground: bannerBackground ?? this.bannerBackground,
-      bannerBorder: bannerBorder ?? this.bannerBorder,
-      mutedText: mutedText ?? this.mutedText,
-      playerName: playerName ?? this.playerName,
-      neutralChip: neutralChip ?? this.neutralChip,
-      selectedCard: selectedCard ?? this.selectedCard,
-      localPanelBackground: localPanelBackground ?? this.localPanelBackground,
-      localPanelBorder: localPanelBorder ?? this.localPanelBorder,
-      success: success ?? this.success,
-      warning: warning ?? this.warning,
-      danger: danger ?? this.danger,
-      inactive: inactive ?? this.inactive,
-    );
+    shellBackground: shellBackground ?? this.shellBackground,
+    headerBackground: headerBackground ?? this.headerBackground,
+    footerBorder: footerBorder ?? this.footerBorder,
+    bannerBackground: bannerBackground ?? this.bannerBackground,
+    bannerBorder: bannerBorder ?? this.bannerBorder,
+    mutedText: mutedText ?? this.mutedText,
+    playerName: playerName ?? this.playerName,
+    neutralChip: neutralChip ?? this.neutralChip,
+    selectedCard: selectedCard ?? this.selectedCard,
+    localPanelBackground: localPanelBackground ?? this.localPanelBackground,
+    localPanelBorder: localPanelBorder ?? this.localPanelBorder,
+    success: success ?? this.success,
+    warning: warning ?? this.warning,
+    danger: danger ?? this.danger,
+    inactive: inactive ?? this.inactive,
+  );
 
   @override
   ThemeExtension<SprintThemeTokens> lerp(

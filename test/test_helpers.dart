@@ -9,14 +9,14 @@ Player player(
   int draws = 0,
   int matchesPlayed = 0,
 }) => Player(
-    id: id,
-    name: name ?? id,
-    elo: elo,
-    wins: wins,
-    losses: losses,
-    draws: draws,
-    matchesPlayed: matchesPlayed,
-  );
+  id: id,
+  name: name ?? id,
+  elo: elo,
+  wins: wins,
+  losses: losses,
+  draws: draws,
+  matchesPlayed: matchesPlayed,
+);
 
 MatchHistoryEntry historyEntry({
   required String id,
@@ -31,15 +31,15 @@ MatchHistoryEntry historyEntry({
   required MatchResult result,
   required int timestamp,
 }) => MatchHistoryEntry(
-    id: id,
-    p1Id: p1Id,
-    p2Id: p2Id,
-    p1Name: p1Name,
-    p2Name: p2Name,
-    p1EloBefore: p1EloBefore,
-    p2EloBefore: p2EloBefore,
-    p1EloAfter: p1EloAfter,
-    p2EloAfter: p2EloAfter,
-    result: result,
-    timestamp: timestamp,
-  );
+  id: id,
+  p1Id: p1Id,
+  p2Id: p2Id,
+  p1Name: p1Name,
+  p2Name: p2Name,
+  p1EloBefore: p1EloBefore,
+  p2EloBefore: p2EloBefore,
+  p1EloAfter: p1EloAfter,
+  p2EloAfter: p2EloAfter,
+  result: result,
+  timestamp: timestamp,
+);

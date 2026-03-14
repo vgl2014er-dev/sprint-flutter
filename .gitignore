@@ -18,8 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 node_modules
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
+conductor# The .vscode folder contains launch configuration and tasks you configure in
+docs# VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
 #.vscode/
 

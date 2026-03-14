@@ -21,31 +21,25 @@ It can query GitHub repositories for context-grounded information using the foll
 deepwiki ask-question --repo-name <owner/repo> --question "<your question>" --raw true
 ```
 
----
+## Agentic Feature Locality Rule
 
-# Flutter AI Rules
-**Role:** Expert Dev. Premium, beautiful code.
-**Tools:** `dart_format`, `dart_fix`, `analyze_files`.
-**Stack:**
-* **Nav:** `go_router` (Type-safe).
-* **State:** `ValueNotifier`. NO Riverpod/GetX.
-* **Data:** `json_serializable` (snake_case).
-* **UI:** Material 3, `ColorScheme.fromSeed`, Dark Mode.
-**Code:**
-* **SOLID**.
-* **Layers:** Pres/Domain/Data.
-* **Naming:** PascalTypes, camelMembers, snake_files.
-* **Async:** `async/await`, try-catch.
-* **Log:** `dart:developer` ONLY.
-* **Null:** Sound safety. No `!`.
-**Perf:**
-* `const` everywhere.
-* `ListView.builder`.
-* `compute()` for heavy tasks.
-**Testing:** `flutter test`, `integration_test`.
-**A11y:** 4.5:1 contrast, Semantics.
-**Design:** "Wow" factor. Glassmorphism, shadows.
-**Docs:** Public API `///`. Explain "Why".
+- Use `lib/features/<feature>/` as the default app structure.
+- Default per-feature structure is two primary files:
+  - `<feature>_screen.dart`
+  - `<feature>_controller.dart`
+- Small feature-specific models can live at the top of the feature controller file.
+- Keep a centralized `app_shell` for global overview and app-level coordination (routing, back policy, composition), but do not keep unrelated feature behavior there.
+- No `domain/usecases` layer for new work.
+- Shared models and repositories live under `lib/core/`.
+- Feature understandability budget is `<=1200` lines, counting only files inside that feature folder.
+- Enforcement mode is manual review only (no CI hard gate).
+- `app_shell` is allowed as an architectural exception when needed for global overview; any exception above `1200` lines must include a short justification and a follow-up split note in the PR.
+
+### PR Checklist (Architecture)
+
+- Each touched feature includes a line-budget total (feature-folder files only) and confirms it is `<=1200` lines, or explains any temporary exception.
+
+
 
 ## Context MCP Performance
 
@@ -81,3 +75,24 @@ deepwiki ask-question --repo-name <owner/repo> --question "<your question>" --ra
 - Total calls: `2`
 - Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=2`
 - Session totals: `0.9KB processed`, `0.0KB sandboxed`, `0.9KB entered context`
+
+### Follow-up Session (2026-03-14, Connected-Only Performance Report)
+
+- Context savings: `1.0x (0% reduction)`
+- Total calls: `3`
+- Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=3`
+- Session totals: `1.4KB processed`, `0.0KB sandboxed`, `1.4KB entered context`
+
+### Follow-up Session (2026-03-14, High+Moderate Performance Apply)
+
+- Context savings: `1.2x (16% reduction)`
+- Total calls: `31`
+- Call breakdown: `ctx_batch_execute=1`, `ctx_execute=9`, `ctx_execute_file=17`, `ctx_search=0`, `ctx_stats=4`
+- Session totals: `196.5KB processed`, `32.1KB sandboxed`, `164.4KB entered context`
+
+### Follow-up Session (2026-03-14, Feature-First Balanced Structure)
+
+- Context savings: `1.2x (20% reduction)`
+- Total calls: `62`
+- Call breakdown: `ctx_batch_execute=4`, `ctx_execute=32`, `ctx_execute_file=21`, `ctx_search=0`, `ctx_stats=5`
+- Session totals: `293.0KB processed`, `57.9KB sandboxed`, `235.0KB entered context`

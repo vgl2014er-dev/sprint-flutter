@@ -1,0 +1,3 @@
+class LandingController {
+  const LandingController();
+}

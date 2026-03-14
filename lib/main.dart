@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'ui/screens/sprint_app.dart';
+import 'features/app_shell/sprint_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

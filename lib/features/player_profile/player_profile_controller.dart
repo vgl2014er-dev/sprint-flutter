@@ -1,0 +1,3 @@
+class PlayerProfileController {
+  const PlayerProfileController();
+}

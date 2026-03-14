@@ -1,0 +1,3 @@
+class LeaderboardController {
+  const LeaderboardController();
+}
