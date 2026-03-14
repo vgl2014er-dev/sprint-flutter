@@ -76,9 +76,7 @@ class LeaderboardScreen extends StatelessWidget {
           child: Column(
             children: <Widget>[
               if (useConnectedDisplayForceFit)
-                _ConnectedLeaderboardHeader(
-                  connectionBadgeLabel: connectionBadgeLabel,
-                )
+                const _ConnectedLeaderboardHeader()
               else ...<Widget>[
                 _LeaderboardHeaderRow(
                   connectionBadgeLabel: connectionBadgeLabel,
@@ -332,9 +330,7 @@ class _LeaderboardHeaderRow extends StatelessWidget {
 }
 
 class _ConnectedLeaderboardHeader extends StatelessWidget {
-  const _ConnectedLeaderboardHeader({this.connectionBadgeLabel});
-
-  final String? connectionBadgeLabel;
+  const _ConnectedLeaderboardHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -380,10 +376,6 @@ class _ConnectedLeaderboardHeader extends StatelessWidget {
               letterSpacing: 2.8,
             ),
           ),
-          if (connectionBadgeLabel case final label?) ...<Widget>[
-            const SizedBox(height: 10),
-            _ConnectionMediumBadge(label: label),
-          ],
         ],
       ),
     );
@@ -491,6 +483,7 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
     final onTap = widget.onTap;
     final isHighlighted = widget.isHighlighted;
     final eloDelta = widget.eloDelta;
+    final cardRadius = connectedLayout ? 0.0 : 8.0;
 
     final textTheme = Theme.of(context).textTheme;
     final tokens = context.sprintTokens;
@@ -526,7 +519,7 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(cardRadius),
         child: LayoutBuilder(
           builder: (context, cardConstraints) {
             final cardWidth = cardConstraints.maxWidth;
@@ -738,7 +731,7 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
         key: highlightKey,
         margin: EdgeInsets.only(bottom: bottomMargin),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(cardRadius),
           border: Border.all(
             color: isHighlighted ? tokens.warning : borderColor,
             width: isHighlighted ? 1.5 : 2.0,
@@ -761,7 +754,7 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
               Positioned.fill(
                 child: IgnorePointer(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(cardRadius),
                     child: AnimatedBuilder(
                       animation: _scanController,
                       builder: (context, _) => FractionalTranslation(

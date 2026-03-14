@@ -92,7 +92,37 @@ void main() {
 
     expect(find.text('LEADERBOARD'), findsOneWidget);
     expect(find.text('SEASON 04 • GLOBAL RANKINGS'), findsOneWidget);
-    expect(find.text('WiFi'), findsOneWidget);
+    expect(find.text('WiFi'), findsNothing);
+  });
+
+  testWidgets('connected cards are square while default cards stay rounded', (
+    WidgetTester tester,
+  ) async {
+    await pumpLeaderboard(
+      tester,
+      state: stateWithPlayers(<Player>[
+        player('p0', name: 'Alpha', elo: 1200),
+      ], readOnlyClient: true),
+      onViewProfile: (_) {},
+    );
+    final connectedCard = tester.widget<Container>(
+      find.byKey(const Key('leaderboard-highlight-row-p0')),
+    );
+    final connectedDecoration = connectedCard.decoration! as BoxDecoration;
+    expect(connectedDecoration.borderRadius, BorderRadius.circular(0));
+
+    await pumpLeaderboard(
+      tester,
+      state: stateWithPlayers(<Player>[
+        player('p0', name: 'Alpha', elo: 1200),
+      ], readOnlyClient: false),
+      onViewProfile: (_) {},
+    );
+    final defaultCard = tester.widget<Container>(
+      find.byKey(const Key('leaderboard-highlight-row-p0')),
+    );
+    final defaultDecoration = defaultCard.decoration! as BoxDecoration;
+    expect(defaultDecoration.borderRadius, BorderRadius.circular(8));
   });
 
   testWidgets('sorts rows by Elo descending', (WidgetTester tester) async {

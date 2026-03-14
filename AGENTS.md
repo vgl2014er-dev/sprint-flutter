@@ -74,3 +74,10 @@ deepwiki ask-question --repo-name <owner/repo> --question "<your question>" --ra
 - Total calls: `1`
 - Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=1`
 - Session totals: `0.3KB processed`, `0.0KB sandboxed`, `0.3KB entered context`
+
+### Follow-up Session (2026-03-14, Connected WiFi Label + Square Card Corners)
+
+- Context savings: `1.0x (0% reduction)`
+- Total calls: `2`
+- Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=2`
+- Session totals: `0.9KB processed`, `0.0KB sandboxed`, `0.9KB entered context`
