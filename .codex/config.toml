@@ -37,3 +37,4 @@ SCIP_LANGUAGES = "dart,python,typescript,go,rust,java"
 SKIP_EXTERNAL_RESOLUTION = "false"
 DATABASE_TYPE = "neo4j"
 SSL_CERT_FILE = "C:\\Users\\paul\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\certifi\\cacert.pem"
+

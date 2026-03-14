@@ -11,7 +11,6 @@ class LandingScreen extends StatelessWidget {
     required this.isLocalSource,
     required this.onOpenRandom,
     required this.onOpenElo,
-    required this.onOpenDeathMatch,
     required this.onStartLocalDisplay,
     required this.onConnectLocalDisplay,
     required this.onStopLocalDisplay,
@@ -28,7 +27,6 @@ class LandingScreen extends StatelessWidget {
   final bool isLocalSource;
   final VoidCallback onOpenRandom;
   final VoidCallback onOpenElo;
-  final VoidCallback onOpenDeathMatch;
   final VoidCallback onStartLocalDisplay;
   final VoidCallback onConnectLocalDisplay;
   final VoidCallback onStopLocalDisplay;
@@ -42,7 +40,6 @@ class LandingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final tokens = context.sprintTokens;
 
     return LayoutBuilder(
@@ -78,13 +75,6 @@ class LandingScreen extends StatelessWidget {
               subtitle: 'Pair nearby Elo ratings together.',
               icon: Icons.balance_rounded,
               onTap: onOpenElo,
-            ),
-            _ActionCard(
-              title: 'Death Match',
-              subtitle: 'Set lives and fight until one remains.',
-              icon: Icons.favorite_rounded,
-              onTap: onOpenDeathMatch,
-              accent: scheme.error,
             ),
             OfflineMirrorSetupCard(
               localSessionState: localSessionState,
@@ -124,12 +114,8 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final tokens = context.sprintTokens;
     final resolvedAccent = accent ?? Theme.of(context).colorScheme.primary;
-    final isDeathMatch = title.toLowerCase().contains('death match');
-    final avatarBackgroundColor = isDeathMatch
-        ? const Color(0xFFFEE2E2) // bg-red-100
-        : const Color(0xFFDBEAFE); // bg-blue-100
+    const avatarBackgroundColor = Color(0xFFDBEAFE); // bg-blue-100
 
     return Material(
       color: Colors.transparent,

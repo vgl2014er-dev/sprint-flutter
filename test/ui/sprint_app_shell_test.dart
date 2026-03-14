@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:sprint/data/repository/sprint_repository.dart';
 import 'package:sprint/models/app_models.dart';
 import 'package:sprint/platform/platform_channels.dart';

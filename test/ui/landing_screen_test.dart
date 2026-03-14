@@ -18,7 +18,6 @@ Widget _buildLanding({
       isLocalSource: isLocalSource,
       onOpenRandom: () {},
       onOpenElo: () {},
-      onOpenDeathMatch: () {},
       onStartLocalDisplay: () {},
       onConnectLocalDisplay: onConnectLocalDisplay ?? () {},
       onStopLocalDisplay: () {},
@@ -128,7 +127,6 @@ void main() {
               isLocalSource: false,
               onOpenRandom: () {},
               onOpenElo: () {},
-              onOpenDeathMatch: () {},
               onStartLocalDisplay: () {},
               onConnectLocalDisplay: () {
                 setState(() {

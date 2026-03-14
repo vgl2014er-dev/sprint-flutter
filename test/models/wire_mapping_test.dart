@@ -8,6 +8,10 @@ void main() {
     }
   });
 
+  test('legacy death-match wire screen falls back to landing', () {
+    expect(Screen.fromWire('select-death'), Screen.landing);
+  });
+
   test('pairing strategy wire values round-trip', () {
     for (final strategy in PairingStrategy.values) {
       expect(PairingStrategy.fromWire(strategy.toWire()), strategy);

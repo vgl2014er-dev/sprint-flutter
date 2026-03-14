@@ -832,8 +832,7 @@ class SprintRepositoryImpl implements SprintRepository {
     return history;
   }
 
-  bool? _parseBool(Object? rawValue) {
-    return switch (rawValue) {
+  bool? _parseBool(Object? rawValue) => switch (rawValue) {
       final bool value => value,
       final String value => switch (value.trim().toLowerCase()) {
         'true' => true,
@@ -843,7 +842,6 @@ class SprintRepositoryImpl implements SprintRepository {
       final num value => value != 0,
       _ => null,
     };
-  }
 
   int? _parseKFactor(Object? rawValue) {
     final value = switch (rawValue) {

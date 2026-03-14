@@ -131,7 +131,6 @@ class LeaderboardScreen extends StatelessWidget {
                               ),
                             if (halfWidthPlayers.isNotEmpty)
                               Wrap(
-                                spacing: connectedGap,
                                 runSpacing: connectedGap,
                                 children: <Widget>[
                                   for (

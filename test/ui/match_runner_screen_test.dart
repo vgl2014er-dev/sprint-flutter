@@ -14,12 +14,10 @@ void main() {
     int targetMatchesPerPlayer = 3,
     Map<String, int>? completedByPlayerId,
     Map<String, int>? scheduledByPlayerId,
-    bool deathMatch = false,
   }) => AppState.initial().copyWith(
     screen: Screen.matchRunner,
     roundMatches: matches,
     currentMatchIndex: currentIndex,
-    deathMatchInProgress: deathMatch,
     standardSessionStrategy: standardSession ? PairingStrategy.random : null,
     clearStandardSessionStrategy: !standardSession,
     standardSessionParticipantIds: standardSession
@@ -285,27 +283,4 @@ void main() {
     expect(nextRoundCalls, 0);
   });
 
-  testWidgets('death match still auto-advances when all matches are played', (
-    WidgetTester tester,
-  ) async {
-    var nextRoundCalls = 0;
-    final match = UiRoundMatch(
-      id: 'm1',
-      player1: player('p1', name: 'Alice'),
-      player2: player('p2', name: 'Bob'),
-      started: true,
-      played: true,
-      winnerId: 'p1',
-    );
-
-    await tester.pumpWidget(
-      buildSubject(
-        buildState(<UiRoundMatch>[match], deathMatch: true),
-        onNextRound: () => nextRoundCalls += 1,
-      ),
-    );
-    await tester.pump();
-
-    expect(nextRoundCalls, greaterThanOrEqualTo(1));
-  });
 }

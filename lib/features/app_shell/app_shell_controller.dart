@@ -102,9 +102,6 @@ class SprintController extends StateNotifier<AppState> {
 
   LocalLeaderboardSnapshot? _localSnapshot;
   PairingStrategy _currentPairingStrategy = PairingStrategy.random;
-  final Set<String> _deathMatchParticipantIds = <String>{};
-  final Map<String, int> _deathMatchByeCountsByPlayerId = <String, int>{};
-  String? _deathMatchPreviousByePlayerId;
   bool? _immersiveShowStatusBar;
 
   void navigateTo(Screen screen) {
@@ -196,7 +193,6 @@ class SprintController extends StateNotifier<AppState> {
       case Screen.settings:
       case Screen.randomPlayerSelection:
       case Screen.eloPlayerSelection:
-      case Screen.deathMatchSelection:
         navigateTo(Screen.landing);
         return false;
       case Screen.matchRunner:
@@ -214,63 +210,11 @@ class SprintController extends StateNotifier<AppState> {
     int targetMatchesPerPlayer = _defaultStandardSessionTargetMatches,
   }) {
     _currentPairingStrategy = strategy;
-    _resetDeathMatchState();
     return _generateMatchesForStandardSession(
       selectedIds: selectedIds,
       strategy: strategy,
       targetMatchesPerPlayer: targetMatchesPerPlayer,
     );
-  }
-
-  bool startDeathMatch(
-    Set<String> selectedIds,
-    PairingStrategy pairingStrategy,
-    int lives,
-  ) {
-    if (_isClientLockedToLeaderboard()) {
-      return false;
-    }
-
-    final selectedPlayers = state.players
-        .where((player) => selectedIds.contains(player.id))
-        .toList(growable: false);
-    if (selectedPlayers.length < 2) {
-      return false;
-    }
-
-    final resolvedLives = lives.clamp(_minDeathMatchLives, _maxDeathMatchLives);
-
-    _resetDeathMatchState();
-
-    _deathMatchParticipantIds
-      ..clear()
-      ..addAll(selectedPlayers.map((player) => player.id));
-
-    state = state.copyWith(
-      deathMatchInProgress: true,
-      deathMatchLives: resolvedLives,
-      deathMatchParticipantIds: selectedPlayers
-          .map((player) => player.id)
-          .toList(growable: false),
-      deathMatchPairingStrategy: pairingStrategy,
-      deathMatchLossesByPlayerId: {
-        for (final participantId in _deathMatchParticipantIds) participantId: 0,
-      },
-      deathMatchMatchesPlayedByPlayerId: {
-        for (final participantId in _deathMatchParticipantIds) participantId: 0,
-      },
-      clearDeathMatchByePlayerId: true,
-      clearDeathMatchChampionId: true,
-    );
-
-    _deathMatchByeCountsByPlayerId
-      ..clear()
-      ..addEntries(
-        _deathMatchParticipantIds.map((id) => MapEntry<String, int>(id, 0)),
-      );
-    _deathMatchPreviousByePlayerId = null;
-
-    return _generateDeathMatchRound();
   }
 
   void startMatch(String matchId) {
@@ -354,8 +298,6 @@ class SprintController extends StateNotifier<AppState> {
       return;
     }
 
-    _applyDeathMatchResult(submittedMatch!, result);
-
     _runRepositoryWrite(
       () => _repository.submitRoundResults(<RoundResultInput>[
         RoundResultInput(
@@ -373,11 +315,6 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   void startNextRound() {
-    if (state.deathMatchInProgress) {
-      _generateDeathMatchRound();
-      return;
-    }
-
     if (state.isStandardSession) {
       return;
     }
@@ -416,17 +353,6 @@ class SprintController extends StateNotifier<AppState> {
           _defaultStandardSessionTargetMatches,
       standardSessionCompletedMatchesByPlayerId: const <String, int>{},
       standardSessionScheduledMatchesByPlayerId: const <String, int>{},
-    );
-  }
-
-  void resetDeathMatch() {
-    _resetDeathMatchState();
-    state = state.copyWith(
-      roundMatches: const <UiRoundMatch>[],
-      currentMatchIndex: 0,
-      screen: state.screen == Screen.matchRunner
-          ? Screen.deathMatchSelection
-          : state.screen,
     );
   }
 
@@ -546,9 +472,6 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   Screen _playerSelectionBackTarget() {
-    if (state.deathMatchInProgress || state.deathMatchPairingStrategy != null) {
-      return Screen.deathMatchSelection;
-    }
     return switch (state.standardSessionStrategy) {
       PairingStrategy.elo => Screen.eloPlayerSelection,
       PairingStrategy.random => Screen.randomPlayerSelection,
@@ -587,6 +510,9 @@ class SprintController extends StateNotifier<AppState> {
     final scheduledCounts = <String, int>{
       for (final id in participantIds) id: 0,
     };
+    final recentOpponentByPlayerId = _buildRecentOpponentByPlayerId(
+      participantIds.toSet(),
+    );
 
     final queue = <RoundPair>[];
     final random = Random(DateTime.now().millisecondsSinceEpoch);
@@ -616,6 +542,11 @@ class SprintController extends StateNotifier<AppState> {
           batchPlayers,
           strategy: strategy,
           random: random,
+          recentOpponentByPlayerId: <String, String>{
+            for (final id in belowTargetIds)
+              id: ?recentOpponentByPlayerId[id],
+          },
+          eloBlockByPlayerId: _buildEloBlockByPlayerId(batchPlayers),
         );
         if (generatedPairs.isEmpty) {
           return false;
@@ -627,6 +558,8 @@ class SprintController extends StateNotifier<AppState> {
               (scheduledCounts[pair.player1.id] ?? 0) + 1;
           scheduledCounts[pair.player2.id] =
               (scheduledCounts[pair.player2.id] ?? 0) + 1;
+          recentOpponentByPlayerId[pair.player1.id] = pair.player2.id;
+          recentOpponentByPlayerId[pair.player2.id] = pair.player1.id;
         }
         continue;
       }
@@ -654,6 +587,8 @@ class SprintController extends StateNotifier<AppState> {
         scheduledCounts[underTargetPlayerId] =
             (scheduledCounts[underTargetPlayerId] ?? 0) + 1;
         scheduledCounts[opponentId] = (scheduledCounts[opponentId] ?? 0) + 1;
+        recentOpponentByPlayerId[underTargetPlayerId] = opponentId;
+        recentOpponentByPlayerId[opponentId] = underTargetPlayerId;
         continue;
       }
     }
@@ -738,6 +673,71 @@ class SprintController extends StateNotifier<AppState> {
     return null;
   }
 
+  Map<String, String> _buildRecentOpponentByPlayerId(Set<String> selectedIds) {
+    if (selectedIds.isEmpty) {
+      return const <String, String>{};
+    }
+
+    final recentOpponentByPlayerId = <String, String>{};
+    final sortedHistory = List<MatchHistoryEntry>.from(state.history)
+      ..sort((left, right) => right.timestamp.compareTo(left.timestamp));
+    for (final entry in sortedHistory) {
+      if (!selectedIds.contains(entry.p1Id) ||
+          !selectedIds.contains(entry.p2Id)) {
+        continue;
+      }
+      recentOpponentByPlayerId.putIfAbsent(entry.p1Id, () => entry.p2Id);
+      recentOpponentByPlayerId.putIfAbsent(entry.p2Id, () => entry.p1Id);
+      if (recentOpponentByPlayerId.length >= selectedIds.length) {
+        break;
+      }
+    }
+    return recentOpponentByPlayerId;
+  }
+
+  Map<String, int> _buildEloBlockByPlayerId(List<Player> selectedPlayers) {
+    if (selectedPlayers.isEmpty) {
+      return const <String, int>{};
+    }
+
+    final sorted = List<Player>.from(selectedPlayers)
+      ..sort((left, right) {
+        final byElo = right.elo.compareTo(left.elo);
+        if (byElo != 0) {
+          return byElo;
+        }
+        final byName = left.name.compareTo(right.name);
+        if (byName != 0) {
+          return byName;
+        }
+        return left.id.compareTo(right.id);
+      });
+
+    final total = sorted.length;
+    final baseSize = total ~/ 3;
+    final remainder = total % 3;
+    final blockSizes = <int>[
+      baseSize + (remainder > 0 ? 1 : 0),
+      baseSize + (remainder > 1 ? 1 : 0),
+      baseSize,
+    ];
+
+    final blockByPlayerId = <String, int>{};
+    var index = 0;
+    for (var block = 0; block < blockSizes.length; block += 1) {
+      final blockSize = blockSizes[block];
+      for (
+        var count = 0;
+        count < blockSize && index < sorted.length;
+        count += 1
+      ) {
+        blockByPlayerId[sorted[index].id] = block;
+        index += 1;
+      }
+    }
+    return blockByPlayerId;
+  }
+
   List<UiRoundMatch> _toUiRoundMatches(
     List<RoundPair> pairs, {
     String? idPrefix,
@@ -776,6 +776,8 @@ class SprintController extends StateNotifier<AppState> {
       selectedPlayers,
       strategy: strategy,
       random: random,
+      recentOpponentByPlayerId: _buildRecentOpponentByPlayerId(selectedIds),
+      eloBlockByPlayerId: _buildEloBlockByPlayerId(selectedPlayers),
     );
     final generatedMatches = _toUiRoundMatches(pairs);
 
@@ -797,188 +799,6 @@ class SprintController extends StateNotifier<AppState> {
     );
 
     return true;
-  }
-
-  bool _generateDeathMatchRound() {
-    final playersById = {for (final player in state.players) player.id: player};
-
-    final activeParticipants = _deathMatchParticipantIds
-        .map((id) => playersById[id])
-        .whereType<Player>()
-        .where(
-          (participant) =>
-              (state.deathMatchLossesByPlayerId[participant.id] ?? 0) <
-              state.deathMatchLives,
-        )
-        .toList(growable: false);
-
-    if (activeParticipants.length < 2) {
-      state = state.copyWith(
-        deathMatchInProgress: false,
-        deathMatchChampionId: activeParticipants.length == 1
-            ? activeParticipants.single.id
-            : null,
-        clearDeathMatchByePlayerId: true,
-        roundMatches: const <UiRoundMatch>[],
-        currentMatchIndex: 0,
-        screen: Screen.deathMatchSelection,
-      );
-      return false;
-    }
-
-    final strategy = state.deathMatchPairingStrategy ?? PairingStrategy.random;
-
-    final byePlayerId = activeParticipants.length.isOdd
-        ? _chooseDeathMatchByePlayer(activeParticipants)
-        : null;
-
-    if (byePlayerId != null) {
-      _deathMatchByeCountsByPlayerId[byePlayerId] =
-          (_deathMatchByeCountsByPlayerId[byePlayerId] ?? 0) + 1;
-      _deathMatchPreviousByePlayerId = byePlayerId;
-    }
-
-    final pairingPool = byePlayerId == null
-        ? activeParticipants
-        : activeParticipants
-              .where((participant) => participant.id != byePlayerId)
-              .toList(growable: false);
-
-    if (pairingPool.length < 2) {
-      state = state.copyWith(
-        deathMatchInProgress: false,
-        deathMatchChampionId: pairingPool.isNotEmpty
-            ? pairingPool.single.id
-            : byePlayerId,
-        screen: Screen.deathMatchSelection,
-      );
-      return false;
-    }
-
-    final pairs = PairingEngine.generate(
-      pairingPool,
-      strategy: strategy,
-      random: Random(DateTime.now().millisecondsSinceEpoch),
-    );
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    state = state.copyWith(
-      roundMatches: pairs
-          .asMap()
-          .entries
-          .map(
-            (entry) => UiRoundMatch(
-              id: 'death-$now-${entry.key}',
-              player1: entry.value.player1,
-              player2: entry.value.player2,
-            ),
-          )
-          .toList(growable: false),
-      currentMatchIndex: 0,
-      deathMatchByePlayerId: byePlayerId,
-      clearDeathMatchChampionId: true,
-      screen: Screen.matchRunner,
-    );
-
-    return state.roundMatches.isNotEmpty;
-  }
-
-  String _chooseDeathMatchByePlayer(List<Player> activeParticipants) {
-    final sorted = List<Player>.from(activeParticipants)
-      ..sort((left, right) {
-        final byeCountCompare = (_deathMatchByeCountsByPlayerId[left.id] ?? 0)
-            .compareTo(_deathMatchByeCountsByPlayerId[right.id] ?? 0);
-        if (byeCountCompare != 0) {
-          return byeCountCompare;
-        }
-
-        final matchesCompare =
-            (state.deathMatchMatchesPlayedByPlayerId[left.id] ?? 0).compareTo(
-              state.deathMatchMatchesPlayedByPlayerId[right.id] ?? 0,
-            );
-        if (matchesCompare != 0) {
-          return matchesCompare;
-        }
-
-        final lossesCompare = (state.deathMatchLossesByPlayerId[right.id] ?? 0)
-            .compareTo(state.deathMatchLossesByPlayerId[left.id] ?? 0);
-        if (lossesCompare != 0) {
-          return lossesCompare;
-        }
-
-        final nameCompare = left.name.compareTo(right.name);
-        if (nameCompare != 0) {
-          return nameCompare;
-        }
-
-        return left.id.compareTo(right.id);
-      });
-
-    return sorted
-        .firstWhere(
-          (player) => player.id != _deathMatchPreviousByePlayerId,
-          orElse: () => sorted.first,
-        )
-        .id;
-  }
-
-  void _applyDeathMatchResult(UiRoundMatch match, MatchResult result) {
-    if (!state.deathMatchInProgress) {
-      return;
-    }
-
-    final participantIds = _deathMatchParticipantIds;
-    final p1Id = match.player1.id;
-    final p2Id = match.player2.id;
-    if (!participantIds.contains(p1Id) || !participantIds.contains(p2Id)) {
-      return;
-    }
-
-    final updatedMatchesPlayed = Map<String, int>.from(
-      state.deathMatchMatchesPlayedByPlayerId,
-    );
-    updatedMatchesPlayed[p1Id] = (updatedMatchesPlayed[p1Id] ?? 0) + 1;
-    updatedMatchesPlayed[p2Id] = (updatedMatchesPlayed[p2Id] ?? 0) + 1;
-
-    if (result == MatchResult.draw) {
-      state = state.copyWith(
-        deathMatchMatchesPlayedByPlayerId: updatedMatchesPlayed,
-      );
-      return;
-    }
-
-    final losingPlayerId = result == MatchResult.p1 ? p2Id : p1Id;
-    final updatedLosses = Map<String, int>.from(
-      state.deathMatchLossesByPlayerId,
-    );
-    updatedLosses[losingPlayerId] = (updatedLosses[losingPlayerId] ?? 0) + 1;
-
-    state = state.copyWith(
-      deathMatchMatchesPlayedByPlayerId: updatedMatchesPlayed,
-      deathMatchLossesByPlayerId: updatedLosses,
-    );
-  }
-
-  void _resetDeathMatchState() {
-    _deathMatchParticipantIds.clear();
-    _deathMatchByeCountsByPlayerId.clear();
-    _deathMatchPreviousByePlayerId = null;
-
-    state = state.copyWith(
-      deathMatchInProgress: false,
-      deathMatchParticipantIds: const <String>[],
-      clearDeathMatchPairingStrategy: true,
-      deathMatchLossesByPlayerId: const <String, int>{},
-      deathMatchMatchesPlayedByPlayerId: const <String, int>{},
-      clearDeathMatchByePlayerId: true,
-      clearDeathMatchChampionId: true,
-      clearStandardSessionStrategy: true,
-      standardSessionParticipantIds: const <String>[],
-      standardSessionTargetMatchesPerPlayer:
-          _defaultStandardSessionTargetMatches,
-      standardSessionCompletedMatchesByPlayerId: const <String, int>{},
-      standardSessionScheduledMatchesByPlayerId: const <String, int>{},
-    );
   }
 
   void _onLocalSessionState(LocalSessionState sessionState) {
@@ -1186,8 +1006,6 @@ class SprintController extends StateNotifier<AppState> {
     }
   }
 
-  static const int _minDeathMatchLives = 1;
-  static const int _maxDeathMatchLives = 9;
   static const int _minStandardSessionTargetMatches = 1;
   static const int _maxStandardSessionTargetMatches = 20;
   static const int _defaultStandardSessionTargetMatches = 3;

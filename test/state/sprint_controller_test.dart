@@ -504,67 +504,6 @@ void main() {
       },
     );
 
-    test('resolves death match champion after elimination threshold', () async {
-      final started = controller.startDeathMatch(
-        const <String>{'a', 'b'},
-        PairingStrategy.elo,
-        2,
-      );
-      expect(started, isTrue);
-      expect(controller.state.deathMatchInProgress, isTrue);
-
-      final firstMatch = controller.state.roundMatches.single;
-      controller.recordResult(firstMatch.id, MatchResult.p1);
-      controller.startNextRound();
-      await flushState();
-
-      final secondMatch = controller.state.roundMatches.single;
-      controller.recordResult(secondMatch.id, MatchResult.p1);
-      controller.startNextRound();
-      await flushState();
-
-      expect(controller.state.deathMatchInProgress, isFalse);
-      expect(controller.state.deathMatchChampionId, 'a');
-      expect(controller.state.screen, Screen.deathMatchSelection);
-      expect(repository.submittedResults.length, 2);
-    });
-
-    test('uses configured death match lives for elimination', () async {
-      final started = controller.startDeathMatch(
-        const <String>{'a', 'b'},
-        PairingStrategy.elo,
-        3,
-      );
-      expect(started, isTrue);
-      expect(controller.state.deathMatchLives, 3);
-      expect(controller.state.deathMatchInProgress, isTrue);
-
-      for (var round = 1; round <= 2; round += 1) {
-        final match = controller.state.roundMatches.single;
-        controller.recordResult(
-          match.id,
-          match.player1.id == 'a' ? MatchResult.p1 : MatchResult.p2,
-        );
-        controller.startNextRound();
-        await flushState();
-
-        expect(controller.state.deathMatchInProgress, isTrue);
-        expect(controller.state.deathMatchChampionId, isNull);
-        expect(controller.state.deathMatchLossesByPlayerId['b'], round);
-      }
-
-      final finalMatch = controller.state.roundMatches.single;
-      controller.recordResult(
-        finalMatch.id,
-        finalMatch.player1.id == 'a' ? MatchResult.p1 : MatchResult.p2,
-      );
-      controller.startNextRound();
-      await flushState();
-
-      expect(controller.state.deathMatchInProgress, isFalse);
-      expect(controller.state.deathMatchChampionId, 'a');
-      expect(controller.state.deathMatchLossesByPlayerId['b'], 3);
-    });
   });
 }
 

@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/app_models.dart';
-import 'app_shell_controller.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/theme/breakpoints.dart';
 import '../../ui/widgets/app_footer.dart';
@@ -17,6 +16,7 @@ import '../match_runner/match_runner_screen.dart';
 import '../player_list/player_list_screen.dart';
 import '../player_profile/player_profile_screen.dart';
 import '../player_selection/player_selection_screen.dart';
+import 'app_shell_controller.dart';
 
 final AudioPlayer _startBeepPlayer = AudioPlayer()
   ..setReleaseMode(ReleaseMode.stop);
@@ -188,7 +188,6 @@ class _SprintAppState extends ConsumerState<SprintApp> {
           Screen.leaderboard,
           Screen.randomPlayerSelection,
           Screen.eloPlayerSelection,
-          Screen.deathMatchSelection,
           Screen.playerList,
           Screen.playerProfile,
         }.contains(shellState.screen) &&
@@ -226,8 +225,6 @@ class _SprintAppState extends ConsumerState<SprintApp> {
                       controller.navigateTo(Screen.randomPlayerSelection),
                   onOpenElo: () =>
                       controller.navigateTo(Screen.eloPlayerSelection),
-                  onOpenDeathMatch: () =>
-                      controller.navigateTo(Screen.deathMatchSelection),
                   onStartLocalDisplay: () =>
                       controller.startLocalHosting(_deviceLabel()),
                   onConnectLocalDisplay: () =>
@@ -284,44 +281,6 @@ class _SprintAppState extends ConsumerState<SprintApp> {
                       _showSnack(appContext, 'Select at least 2 players.');
                     }
                   },
-                );
-              },
-            ),
-            Screen.deathMatchSelection => Consumer(
-              builder: (context, ref, _) {
-                final deathMatchState = ref.watch(
-                  sprintControllerProvider.select(
-                    (value) => (
-                      value.players,
-                      value.deathMatchInProgress,
-                      value.deathMatchLives,
-                      value.deathMatchChampionId,
-                      value.deathMatchParticipantIds,
-                      value.deathMatchPairingStrategy,
-                      value.deathMatchLossesByPlayerId,
-                    ),
-                  ),
-                );
-                return DeathMatchSelectionScreen(
-                  players: deathMatchState.$1,
-                  deathMatchInProgress: deathMatchState.$2,
-                  deathMatchLives: deathMatchState.$3,
-                  deathMatchChampionId: deathMatchState.$4,
-                  deathMatchParticipantIds: deathMatchState.$5,
-                  deathMatchPairingStrategy: deathMatchState.$6,
-                  deathMatchLossesByPlayerId: deathMatchState.$7,
-                  onStart: (selected, strategy, lives) {
-                    final success = controller.startDeathMatch(
-                      selected,
-                      strategy,
-                      lives,
-                    );
-                    if (!success) {
-                      _showSnack(appContext, 'Select at least 2 players.');
-                    }
-                  },
-                  onReset: controller.resetDeathMatch,
-                  onResume: () => controller.navigateTo(Screen.matchRunner),
                 );
               },
             ),
@@ -688,8 +647,6 @@ String _headerTitle(Screen screen) {
     case Screen.randomPlayerSelection:
     case Screen.eloPlayerSelection:
       return 'Select Players';
-    case Screen.deathMatchSelection:
-      return 'Death Match';
     case Screen.playerList:
       return 'Players';
     case Screen.playerProfile:

@@ -30,14 +30,7 @@ class MatchRunnerScreen extends StatelessWidget {
         : matches[state.currentMatchIndex.clamp(0, matches.length - 1)];
     final allPlayed =
         matches.isNotEmpty && matches.every((match) => match.played);
-    final isStandardSession =
-        state.isStandardSession && !state.deathMatchInProgress;
-
-    if (allPlayed && state.deathMatchInProgress) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        onNextRound();
-      });
-    }
+    final isStandardSession = state.isStandardSession;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -51,9 +44,7 @@ class MatchRunnerScreen extends StatelessWidget {
               ),
               Expanded(
                 child: Text(
-                  state.deathMatchInProgress
-                      ? 'Death Match · ${_survivorsCount(state)} survivors'
-                      : 'Match ${matches.isEmpty ? 0 : state.currentMatchIndex + 1} of ${matches.length}',
+                  'Match ${matches.isEmpty ? 0 : state.currentMatchIndex + 1} of ${matches.length}',
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -66,19 +57,6 @@ class MatchRunnerScreen extends StatelessWidget {
               ),
             ],
           ),
-          if (state.deathMatchInProgress)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                border: Border.all(color: Theme.of(context).colorScheme.error),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${state.deathMatchLives == 1 ? 'One loss' : '${state.deathMatchLives} losses'} eliminates a player. Draws do not add losses.',
-              ),
-            ),
           Expanded(
             child: allPlayed
                 ? isStandardSession
@@ -89,17 +67,11 @@ class MatchRunnerScreen extends StatelessWidget {
                 : _MatchCard(
                     match: currentMatch,
                     history: state.history,
-                    isDeathMatch: state.deathMatchInProgress,
                     isStandardSession: isStandardSession,
                     standardSessionTargetMatchesPerPlayer:
                         state.standardSessionTargetMatchesPerPlayer,
                     standardSessionCompletedMatchesByPlayerId:
                         state.standardSessionCompletedMatchesByPlayerId,
-                    deathMatchLives: state.deathMatchLives,
-                    deathMatchLossesByPlayerId:
-                        state.deathMatchLossesByPlayerId,
-                    deathMatchMatchesPlayedByPlayerId:
-                        state.deathMatchMatchesPlayedByPlayerId,
                     onStart: () {
                       onStart(currentMatch.id);
                     },
@@ -149,24 +121,13 @@ class _StandardSessionCompleteState extends StatelessWidget {
   }
 }
 
-int _survivorsCount(AppState state) => state.deathMatchParticipantIds
-    .where(
-      (id) =>
-          (state.deathMatchLossesByPlayerId[id] ?? 0) < state.deathMatchLives,
-    )
-    .length;
-
 class _MatchCard extends StatelessWidget {
   const _MatchCard({
     required this.match,
     required this.history,
-    required this.isDeathMatch,
     required this.isStandardSession,
     required this.standardSessionTargetMatchesPerPlayer,
     required this.standardSessionCompletedMatchesByPlayerId,
-    required this.deathMatchLives,
-    required this.deathMatchLossesByPlayerId,
-    required this.deathMatchMatchesPlayedByPlayerId,
     required this.onStart,
     required this.onP1,
     required this.onP2,
@@ -175,13 +136,9 @@ class _MatchCard extends StatelessWidget {
 
   final UiRoundMatch match;
   final List<MatchHistoryEntry> history;
-  final bool isDeathMatch;
   final bool isStandardSession;
   final int standardSessionTargetMatchesPerPlayer;
   final Map<String, int> standardSessionCompletedMatchesByPlayerId;
-  final int deathMatchLives;
-  final Map<String, int> deathMatchLossesByPlayerId;
-  final Map<String, int> deathMatchMatchesPlayedByPlayerId;
   final VoidCallback onStart;
   final VoidCallback onP1;
   final VoidCallback onP2;
@@ -250,9 +207,6 @@ class _MatchCard extends StatelessWidget {
                       elo: match.player1.elo,
                       winRate: p1WinRate,
                     ),
-                    detail: isDeathMatch
-                        ? _buildLivesRow(match.player1.id)
-                        : null,
                     active: match.played && match.winnerId == match.player1.id,
                     enabled: !match.played,
                     buttonType: _ResultButtonType.p1,
@@ -266,9 +220,6 @@ class _MatchCard extends StatelessWidget {
                       elo: match.player2.elo,
                       winRate: p2WinRate,
                     ),
-                    detail: isDeathMatch
-                        ? _buildLivesRow(match.player2.id)
-                        : null,
                     active: match.played && match.winnerId == match.player2.id,
                     enabled: !match.played,
                     buttonType: _ResultButtonType.p2,
@@ -304,46 +255,6 @@ class _MatchCard extends StatelessWidget {
       parts.add('$completed/$standardSessionTargetMatchesPerPlayer');
     }
     return parts.join(' · ');
-  }
-
-  Widget _buildLivesRow(String playerId) {
-    final remainingLives =
-        (deathMatchLives - (deathMatchLossesByPlayerId[playerId] ?? 0)).clamp(
-          0,
-          deathMatchLives,
-        );
-    return Builder(
-      builder: (context) {
-        final tokens = context.sprintTokens;
-        final textTheme = Theme.of(context).textTheme;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ...List<Widget>.generate(deathMatchLives, (index) {
-              final filled = index < remainingLives;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: Icon(
-                  filled
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 16,
-                  color: filled ? tokens.danger : tokens.inactive,
-                ),
-              );
-            }),
-            const SizedBox(width: 6),
-            Text(
-              '$remainingLives/$deathMatchLives',
-              style: textTheme.labelLarge?.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
 

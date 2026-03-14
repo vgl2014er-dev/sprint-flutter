@@ -10,20 +10,120 @@ class RoundPair {
 }
 
 class PairingEngine {
+  static const int _randomCandidateSampleCount = 12;
+
   static List<RoundPair> generate(
     List<Player> players, {
     PairingStrategy strategy = PairingStrategy.random,
     Random? random,
+    Map<String, String>? recentOpponentByPlayerId,
+    Map<String, int>? eloBlockByPlayerId,
   }) {
     switch (strategy) {
       case PairingStrategy.random:
-        return _generateRandom(players, random ?? Random());
+        return _generateRandom(
+          players,
+          random ?? Random(),
+          recentOpponentByPlayerId: recentOpponentByPlayerId,
+          eloBlockByPlayerId: eloBlockByPlayerId,
+        );
       case PairingStrategy.elo:
         return _generateByElo(players);
     }
   }
 
-  static List<RoundPair> _generateRandom(List<Player> players, Random random) {
+  static List<RoundPair> _generateRandom(
+    List<Player> players,
+    Random random, {
+    Map<String, String>? recentOpponentByPlayerId,
+    Map<String, int>? eloBlockByPlayerId,
+  }) {
+    final recent = recentOpponentByPlayerId ?? const <String, String>{};
+    final blocks = eloBlockByPlayerId ?? const <String, int>{};
+    if (recent.isEmpty && blocks.isEmpty) {
+      return _generateRandomLegacy(players, random);
+    }
+
+    if (players.length < 2) {
+      return const <RoundPair>[];
+    }
+
+    final candidates = List<List<RoundPair>>.generate(
+      _randomCandidateSampleCount,
+      (_) => _generateRandomLegacy(players, random),
+      growable: false,
+    );
+
+    var bestImmediateRematches = 1 << 30;
+    var bestCrossBlockPairs = 1 << 30;
+    final bestCandidates = <List<RoundPair>>[];
+
+    for (final candidate in candidates) {
+      final immediateRematches = _countImmediateRematches(candidate, recent);
+      final crossBlockPairs = _countCrossBlockPairs(candidate, blocks);
+      final isBetter =
+          immediateRematches < bestImmediateRematches ||
+          (immediateRematches == bestImmediateRematches &&
+              crossBlockPairs < bestCrossBlockPairs);
+      final isTie =
+          immediateRematches == bestImmediateRematches &&
+          crossBlockPairs == bestCrossBlockPairs;
+
+      if (isBetter) {
+        bestImmediateRematches = immediateRematches;
+        bestCrossBlockPairs = crossBlockPairs;
+        bestCandidates
+          ..clear()
+          ..add(candidate);
+        continue;
+      }
+
+      if (isTie) {
+        bestCandidates.add(candidate);
+      }
+    }
+
+    if (bestCandidates.isEmpty) {
+      return _generateRandomLegacy(players, random);
+    }
+    return bestCandidates[random.nextInt(bestCandidates.length)];
+  }
+
+  static int _countImmediateRematches(
+    List<RoundPair> pairs,
+    Map<String, String> recentOpponentByPlayerId,
+  ) {
+    var rematches = 0;
+    for (final pair in pairs) {
+      final p1 = pair.player1.id;
+      final p2 = pair.player2.id;
+      if (recentOpponentByPlayerId[p1] == p2 ||
+          recentOpponentByPlayerId[p2] == p1) {
+        rematches += 1;
+      }
+    }
+    return rematches;
+  }
+
+  static int _countCrossBlockPairs(
+    List<RoundPair> pairs,
+    Map<String, int> eloBlockByPlayerId,
+  ) {
+    var crossBlockPairs = 0;
+    for (final pair in pairs) {
+      final p1Block = eloBlockByPlayerId[pair.player1.id];
+      final p2Block = eloBlockByPlayerId[pair.player2.id];
+      if (p1Block != null && p2Block != null && p1Block != p2Block) {
+        crossBlockPairs += 1;
+      }
+    }
+    return crossBlockPairs;
+  }
+
+  static List<RoundPair> _generateRandomLegacy(
+    List<Player> players,
+    Random random,
+  ) {
     if (players.length < 2) {
       return const <RoundPair>[];
     }

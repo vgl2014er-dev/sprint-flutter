@@ -36,7 +36,6 @@ void main() {
                 isLocalSource: true,
                 onOpenRandom: () {},
                 onOpenElo: () {},
-                onOpenDeathMatch: () {},
                 onStartLocalDisplay: () {},
                 onConnectLocalDisplay: () {},
                 onStopLocalDisplay: () {},

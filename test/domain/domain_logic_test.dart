@@ -63,6 +63,85 @@ void main() {
       expect(pairs[2].player1.id, 'e');
       expect(pairs[2].player2.id, 'd');
     });
+
+    test(
+      'random strategy avoids immediate rematches when alternatives exist',
+      () {
+        final localPlayers = <Player>[
+          player('a', name: 'A'),
+          player('b', name: 'B'),
+          player('c', name: 'C'),
+          player('d', name: 'D'),
+        ];
+        final pairs = PairingEngine.generate(
+          localPlayers,
+          random: Random(11),
+          recentOpponentByPlayerId: const <String, String>{
+            'a': 'b',
+            'b': 'a',
+            'c': 'd',
+            'd': 'c',
+          },
+        );
+
+        bool isPair(String left, String right) => pairs.any(
+          (pair) =>
+              (pair.player1.id == left && pair.player2.id == right) ||
+              (pair.player1.id == right && pair.player2.id == left),
+        );
+
+        expect(pairs, hasLength(2));
+        expect(isPair('a', 'b'), isFalse);
+        expect(isPair('c', 'd'), isFalse);
+      },
+    );
+
+    test('random strategy keeps novelty priority above elo blocks', () {
+      final localPlayers = <Player>[
+        player('a', name: 'A', elo: 2000),
+        player('b', name: 'B', elo: 1950),
+        player('c', name: 'C', elo: 1500),
+        player('d', name: 'D', elo: 1450),
+      ];
+      final pairs = PairingEngine.generate(
+        localPlayers,
+        random: Random(3),
+        recentOpponentByPlayerId: const <String, String>{'a': 'b', 'b': 'a'},
+        eloBlockByPlayerId: const <String, int>{'a': 0, 'b': 0, 'c': 1, 'd': 1},
+      );
+
+      final hasAB = pairs.any(
+        (pair) =>
+            (pair.player1.id == 'a' && pair.player2.id == 'b') ||
+            (pair.player1.id == 'b' && pair.player2.id == 'a'),
+      );
+      expect(hasAB, isFalse);
+    });
+
+    test('random strategy prefers same-block pairings on novelty ties', () {
+      final localPlayers = <Player>[
+        player('a', name: 'A', elo: 2000),
+        player('b', name: 'B', elo: 1950),
+        player('c', name: 'C', elo: 1500),
+        player('d', name: 'D', elo: 1450),
+      ];
+      final pairs = PairingEngine.generate(
+        localPlayers,
+        random: Random(5),
+        eloBlockByPlayerId: const <String, int>{'a': 0, 'b': 0, 'c': 1, 'd': 1},
+      );
+
+      final crossBlockPairs = pairs.where((pair) {
+        final p1Block = pair.player1.id == 'a' || pair.player1.id == 'b'
+            ? 0
+            : 1;
+        final p2Block = pair.player2.id == 'a' || pair.player2.id == 'b'
+            ? 0
+            : 1;
+        return p1Block != p2Block;
+      });
+      expect(crossBlockPairs.length, 0);
+    });
   });
 
   group('History and rollback', () {

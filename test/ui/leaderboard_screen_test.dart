@@ -101,7 +101,7 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p0', name: 'Alpha', elo: 1200),
+        player('p0', name: 'Alpha'),
       ], readOnlyClient: true),
       onViewProfile: (_) {},
     );
@@ -114,8 +114,8 @@ void main() {
     await pumpLeaderboard(
       tester,
       state: stateWithPlayers(<Player>[
-        player('p0', name: 'Alpha', elo: 1200),
-      ], readOnlyClient: false),
+        player('p0', name: 'Alpha'),
+      ]),
       onViewProfile: (_) {},
     );
     final defaultCard = tester.widget<Container>(
@@ -131,7 +131,7 @@ void main() {
       state: stateWithPlayers(<Player>[
         player('p1', name: 'Low', elo: 1000),
         player('p2', name: 'High', elo: 1300),
-        player('p3', name: 'Mid', elo: 1200),
+        player('p3', name: 'Mid'),
       ]),
       onViewProfile: (_) {},
     );
@@ -260,7 +260,7 @@ void main() {
     String? selectedId;
     await pumpLeaderboard(
       tester,
-      state: stateWithPlayers(players, readOnlyClient: false),
+      state: stateWithPlayers(players),
       onViewProfile: (player) => selectedId = player.id,
     );
 

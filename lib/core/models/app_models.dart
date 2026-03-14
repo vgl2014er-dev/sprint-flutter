@@ -57,7 +57,6 @@ enum Screen {
   landing,
   randomPlayerSelection,
   eloPlayerSelection,
-  deathMatchSelection,
   matchRunner,
   leaderboard,
   playerProfile,
@@ -72,8 +71,6 @@ enum Screen {
         return 'select-random';
       case Screen.eloPlayerSelection:
         return 'select-elo';
-      case Screen.deathMatchSelection:
-        return 'select-death';
       case Screen.matchRunner:
         return 'run-matches';
       case Screen.leaderboard:
@@ -96,7 +93,7 @@ enum Screen {
       case 'select-elo':
         return Screen.eloPlayerSelection;
       case 'select-death':
-        return Screen.deathMatchSelection;
+        return Screen.landing;
       case 'run-matches':
         return Screen.matchRunner;
       case 'leaderboard':
@@ -840,14 +837,6 @@ class AppState {
     required this.standardSessionTargetMatchesPerPlayer,
     required this.standardSessionCompletedMatchesByPlayerId,
     required this.standardSessionScheduledMatchesByPlayerId,
-    required this.deathMatchInProgress,
-    required this.deathMatchLives,
-    required this.deathMatchParticipantIds,
-    required this.deathMatchPairingStrategy,
-    required this.deathMatchLossesByPlayerId,
-    required this.deathMatchMatchesPlayedByPlayerId,
-    required this.deathMatchByePlayerId,
-    required this.deathMatchChampionId,
   });
 
   final List<Player> players;
@@ -871,14 +860,6 @@ class AppState {
   final int standardSessionTargetMatchesPerPlayer;
   final Map<String, int> standardSessionCompletedMatchesByPlayerId;
   final Map<String, int> standardSessionScheduledMatchesByPlayerId;
-  final bool deathMatchInProgress;
-  final int deathMatchLives;
-  final List<String> deathMatchParticipantIds;
-  final PairingStrategy? deathMatchPairingStrategy;
-  final Map<String, int> deathMatchLossesByPlayerId;
-  final Map<String, int> deathMatchMatchesPlayedByPlayerId;
-  final String? deathMatchByePlayerId;
-  final String? deathMatchChampionId;
 
   bool get isLocalClientMode =>
       leaderboardSource == LeaderboardSource.local &&
@@ -925,17 +906,6 @@ class AppState {
     int? standardSessionTargetMatchesPerPlayer,
     Map<String, int>? standardSessionCompletedMatchesByPlayerId,
     Map<String, int>? standardSessionScheduledMatchesByPlayerId,
-    bool? deathMatchInProgress,
-    int? deathMatchLives,
-    List<String>? deathMatchParticipantIds,
-    PairingStrategy? deathMatchPairingStrategy,
-    bool clearDeathMatchPairingStrategy = false,
-    Map<String, int>? deathMatchLossesByPlayerId,
-    Map<String, int>? deathMatchMatchesPlayedByPlayerId,
-    String? deathMatchByePlayerId,
-    bool clearDeathMatchByePlayerId = false,
-    String? deathMatchChampionId,
-    bool clearDeathMatchChampionId = false,
   }) => AppState(
     players: players ?? this.players,
     history: history ?? this.history,
@@ -970,24 +940,6 @@ class AppState {
     standardSessionScheduledMatchesByPlayerId:
         standardSessionScheduledMatchesByPlayerId ??
         this.standardSessionScheduledMatchesByPlayerId,
-    deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
-    deathMatchLives: deathMatchLives ?? this.deathMatchLives,
-    deathMatchParticipantIds:
-        deathMatchParticipantIds ?? this.deathMatchParticipantIds,
-    deathMatchPairingStrategy: clearDeathMatchPairingStrategy
-        ? null
-        : (deathMatchPairingStrategy ?? this.deathMatchPairingStrategy),
-    deathMatchLossesByPlayerId:
-        deathMatchLossesByPlayerId ?? this.deathMatchLossesByPlayerId,
-    deathMatchMatchesPlayedByPlayerId:
-        deathMatchMatchesPlayedByPlayerId ??
-        this.deathMatchMatchesPlayedByPlayerId,
-    deathMatchByePlayerId: clearDeathMatchByePlayerId
-        ? null
-        : (deathMatchByePlayerId ?? this.deathMatchByePlayerId),
-    deathMatchChampionId: clearDeathMatchChampionId
-        ? null
-        : (deathMatchChampionId ?? this.deathMatchChampionId),
   );
 
   static AppState initial() => const AppState(
@@ -1012,14 +964,6 @@ class AppState {
     standardSessionTargetMatchesPerPlayer: 3,
     standardSessionCompletedMatchesByPlayerId: <String, int>{},
     standardSessionScheduledMatchesByPlayerId: <String, int>{},
-    deathMatchInProgress: false,
-    deathMatchLives: 2,
-    deathMatchParticipantIds: <String>[],
-    deathMatchPairingStrategy: null,
-    deathMatchLossesByPlayerId: <String, int>{},
-    deathMatchMatchesPlayedByPlayerId: <String, int>{},
-    deathMatchByePlayerId: null,
-    deathMatchChampionId: null,
   );
 
   @override
@@ -1059,24 +1003,7 @@ class AppState {
             eq.equals(
               standardSessionScheduledMatchesByPlayerId,
               other.standardSessionScheduledMatchesByPlayerId,
-            ) &&
-            deathMatchInProgress == other.deathMatchInProgress &&
-            deathMatchLives == other.deathMatchLives &&
-            eq.equals(
-              deathMatchParticipantIds,
-              other.deathMatchParticipantIds,
-            ) &&
-            deathMatchPairingStrategy == other.deathMatchPairingStrategy &&
-            eq.equals(
-              deathMatchLossesByPlayerId,
-              other.deathMatchLossesByPlayerId,
-            ) &&
-            eq.equals(
-              deathMatchMatchesPlayedByPlayerId,
-              other.deathMatchMatchesPlayedByPlayerId,
-            ) &&
-            deathMatchByePlayerId == other.deathMatchByePlayerId &&
-            deathMatchChampionId == other.deathMatchChampionId;
+            );
   }
 
   @override
@@ -1107,14 +1034,6 @@ class AppState {
     const DeepCollectionEquality().hash(
       standardSessionScheduledMatchesByPlayerId,
     ),
-    deathMatchInProgress,
-    deathMatchLives,
-    const DeepCollectionEquality().hash(deathMatchParticipantIds),
-    deathMatchPairingStrategy,
-    const DeepCollectionEquality().hash(deathMatchLossesByPlayerId),
-    const DeepCollectionEquality().hash(deathMatchMatchesPlayedByPlayerId),
-    deathMatchByePlayerId,
-    deathMatchChampionId,
   ]);
 }
 
