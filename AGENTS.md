@@ -46,3 +46,31 @@ deepwiki ask-question --repo-name <owner/repo> --question "<your question>" --ra
 **A11y:** 4.5:1 contrast, Semantics.
 **Design:** "Wow" factor. Glassmorphism, shadows.
 **Docs:** Public API `///`. Explain "Why".
+
+## Context MCP Performance
+
+- Context savings: `1.7x (39% reduction)`
+- Total calls: `45`
+- Call breakdown: `ctx_batch_execute=7`, `ctx_execute=1`, `ctx_execute_file=34`, `ctx_search=3`
+- Session totals: `794.6KB processed`, `313.6KB sandboxed`, `481.0KB entered context`
+
+### Follow-up Session (2026-03-14)
+
+- Context savings: `1.6x (39% reduction)`
+- Total calls: `113`
+- Call breakdown: `ctx_batch_execute=8`, `ctx_execute=23`, `ctx_execute_file=67`, `ctx_search=11`, `ctx_stats=4`
+- Session totals: `1.4MB processed`, `549.5KB sandboxed`, `865.1KB entered context`
+
+### Follow-up Session (2026-03-14, Auto-Connect Accept Fix)
+
+- Context savings: `N/A (no context-mode tool calls in this session)`
+- Total calls: `0`
+- Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=1`
+- Session totals: `0B processed`, `0B sandboxed`, `0B entered context`
+
+### Follow-up Session (2026-03-14, Connected Header + Side Padding Fix)
+
+- Context savings: `1.0x (0% reduction)`
+- Total calls: `1`
+- Call breakdown: `ctx_batch_execute=0`, `ctx_execute=0`, `ctx_execute_file=0`, `ctx_search=0`, `ctx_stats=1`
+- Session totals: `0.3KB processed`, `0.0KB sandboxed`, `0.3KB entered context`

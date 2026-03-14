@@ -28,6 +28,7 @@ import elo.flutter.nearby.LocalLeaderboardSnapshot
 import elo.flutter.nearby.LocalSessionPhase
 import elo.flutter.nearby.LocalSessionRole
 import elo.flutter.nearby.LocalSessionState
+import elo.flutter.nearby.LocalControlMessage
 
 class SprintPlatformBridge(
     private val activity: FlutterFragmentActivity,
@@ -145,6 +146,12 @@ class SprintPlatformBridge(
                 result.success(null)
             }
 
+            "sendLocalControl" -> {
+                val control = call.requiredControlArg(result) ?: return
+                localController.sendControl(control)
+                result.success(null)
+            }
+
             "setImmersiveMode" -> {
                 val showStatusBar = call.argument<Boolean>("showStatusBar") ?: true
                 applyImmersiveMode(showStatusBar = showStatusBar)
@@ -174,6 +181,14 @@ class SprintPlatformBridge(
                     if (snapshot != null) {
                         emitPlatformEvent("local_snapshot", snapshot.toWireMap())
                     }
+                }
+            }
+            launch {
+                localController.controlEvents.collect { control ->
+                    emitPlatformEvent(
+                        "local_control_event",
+                        mapOf("action" to control.toWireValue()),
+                    )
                 }
             }
         }
@@ -327,6 +342,18 @@ class SprintPlatformBridge(
         return snapshot
     }
 
+    private fun MethodCall.requiredControlArg(
+        result: MethodChannel.Result,
+    ): LocalControlMessage? {
+        val action = argument<String>("action")?.trim()
+        val control = controlFromWireValue(action)
+        if (control == null) {
+            result.error("bad_payload", "Invalid control action", null)
+            return null
+        }
+        return control
+    }
+
     private fun Map<*, *>.toSnapshot(): LocalLeaderboardSnapshot? {
         val hostDisplayName = this["hostDisplayName"]?.toString()?.trim().orEmpty()
         if (hostDisplayName.isBlank()) {
@@ -384,6 +411,17 @@ class SprintPlatformBridge(
         is Number -> this.toLong()
         is String -> this.toLongOrNull()
         else -> null
+    }
+
+    private fun LocalControlMessage.toWireValue(): String = when (this) {
+        LocalControlMessage.START_MATCH_BEEP -> "start_match_beep"
+    }
+
+    private fun controlFromWireValue(value: String?): LocalControlMessage? {
+        return when (value) {
+            "start_match_beep" -> LocalControlMessage.START_MATCH_BEEP
+            else -> null
+        }
     }
 
     sealed interface PendingNearbyAction {

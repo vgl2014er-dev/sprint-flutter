@@ -61,6 +61,18 @@ class SprintController extends StateNotifier<AppState> {
         _dbThemePreference = value;
         _refreshProjectedData();
       }),
+      _repository.remoteSyncEnabled.listen((value) {
+        _dbRemoteSyncEnabled = value;
+        _refreshProjectedData();
+      }),
+      _repository.useClientAudio.listen((value) {
+        _dbUseClientAudio = value;
+        _refreshProjectedData();
+      }),
+      _repository.manualFullscreenEnabled.listen((value) {
+        _dbManualFullscreenEnabled = value;
+        _refreshProjectedData();
+      }),
       _platformChannels.localSessionState.listen(_onLocalSessionState),
       _platformChannels.localSnapshot.listen((value) {
         _localSnapshot = value;
@@ -83,6 +95,9 @@ class SprintController extends StateNotifier<AppState> {
   SyncState _dbSyncState = const SyncState();
   int _dbKFactor = Defaults.eloK;
   AppThemePreference _dbThemePreference = AppThemePreference.light;
+  bool _dbRemoteSyncEnabled = true;
+  bool _dbUseClientAudio = false;
+  bool _dbManualFullscreenEnabled = false;
 
   LocalLeaderboardSnapshot? _localSnapshot;
   PairingStrategy _currentPairingStrategy = PairingStrategy.random;
@@ -92,10 +107,101 @@ class SprintController extends StateNotifier<AppState> {
   bool? _immersiveShowStatusBar;
 
   void navigateTo(Screen screen) {
+    if (screen == Screen.settings) {
+      openSettingsModal();
+      return;
+    }
     if (_isClientLockedToLeaderboard() && screen != Screen.leaderboard) {
       return;
     }
-    state = state.copyWith(screen: screen);
+    state = state.copyWith(screen: screen, isSettingsOpen: false);
+  }
+
+  void openSettingsModal() {
+    if (_isClientLockedToLeaderboard()) {
+      return;
+    }
+    state = state.copyWith(isSettingsOpen: true);
+  }
+
+  void closeSettingsModal() {
+    if (!state.isSettingsOpen) {
+      return;
+    }
+    state = state.copyWith(isSettingsOpen: false);
+  }
+
+  void toggleRemoteSync(bool enabled) {
+    state = state.copyWith(remoteSyncEnabled: enabled);
+    _runRepositoryWrite(
+      () => _repository.setRemoteSyncEnabled(enabled),
+      action: 'setRemoteSyncEnabled',
+    );
+  }
+
+  void toggleClientAudio(bool enabled) {
+    state = state.copyWith(useClientAudio: enabled);
+    _runRepositoryWrite(
+      () => _repository.setUseClientAudio(enabled),
+      action: 'setUseClientAudio',
+    );
+  }
+
+  void toggleFullscreen(bool enabled) {
+    state = state.copyWith(manualFullscreenEnabled: enabled);
+    _syncImmersiveModeForState(state);
+    _runRepositoryWrite(
+      () => _repository.setManualFullscreenEnabled(enabled),
+      action: 'setManualFullscreenEnabled',
+    );
+  }
+
+  void resetLocalData() {
+    _runRepositoryWrite(_repository.resetLocalData, action: 'resetLocalData');
+  }
+
+  void resetCloudData() {
+    if (!state.remoteSyncEnabled) {
+      return;
+    }
+    _runRepositoryWrite(_repository.resetCloudData, action: 'resetCloudData');
+  }
+
+  void seedCloudData() {
+    if (!state.remoteSyncEnabled) {
+      return;
+    }
+    _runRepositoryWrite(_repository.seedCloudData, action: 'seedCloudData');
+  }
+
+  bool handleBackAction() {
+    if (state.isSettingsOpen) {
+      closeSettingsModal();
+      return false;
+    }
+    if (state.manualFullscreenEnabled) {
+      toggleFullscreen(false);
+      return false;
+    }
+
+    switch (state.screen) {
+      case Screen.landing:
+        return true;
+      case Screen.leaderboard:
+      case Screen.playerList:
+      case Screen.settings:
+      case Screen.randomPlayerSelection:
+      case Screen.eloPlayerSelection:
+      case Screen.deathMatchSelection:
+        navigateTo(Screen.landing);
+        return false;
+      case Screen.matchRunner:
+        navigateTo(_playerSelectionBackTarget());
+        return false;
+      case Screen.playerProfile:
+        navigateTo(Screen.playerList);
+        return false;
+    }
   }
 
   bool generateMatches(
@@ -174,6 +280,17 @@ class SprintController extends StateNotifier<AppState> {
         .toList(growable: false);
 
     state = state.copyWith(roundMatches: matches);
+
+    final shouldSendClientBeep =
+        state.useClientAudio &&
+        state.localSessionState.role == LocalSessionRole.host &&
+        state.localSessionState.phase == LocalSessionPhase.connected;
+    if (shouldSendClientBeep) {
+      _runPlatformCommand(
+        _platformChannels.sendStartMatchBeepControl,
+        action: 'sendStartMatchBeepControl',
+      );
+    }
   }
 
   void recordResult(String matchId, MatchResult result) {
@@ -310,7 +427,7 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   void resetData() {
-    _runRepositoryWrite(_repository.resetAllData, action: 'resetAllData');
+    resetLocalData();
   }
 
   void setKFactor(int kFactor) {
@@ -355,7 +472,10 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   void startLocalHosting(String localEndpointName) {
-    state = state.copyWith(leaderboardSource: LeaderboardSource.db);
+    state = state.copyWith(
+      leaderboardSource: LeaderboardSource.db,
+      isSettingsOpen: false,
+    );
     _runPlatformCommand(
       _platformChannels.useDatabaseModeForLocal,
       action: 'useDatabaseModeForLocal',
@@ -409,13 +529,27 @@ class SprintController extends StateNotifier<AppState> {
   }
 
   void useDatabaseLeaderboard() {
-    state = state.copyWith(leaderboardSource: LeaderboardSource.db);
+    state = state.copyWith(
+      leaderboardSource: LeaderboardSource.db,
+      isSettingsOpen: false,
+    );
     _syncImmersiveModeForState(state);
     _runPlatformCommand(
       _platformChannels.useDatabaseModeForLocal,
       action: 'useDatabaseModeForLocal',
     );
     _refreshProjectedData();
+  }
+
+  Screen _playerSelectionBackTarget() {
+    if (state.deathMatchInProgress || state.deathMatchPairingStrategy != null) {
+      return Screen.deathMatchSelection;
+    }
+    return switch (state.standardSessionStrategy) {
+      PairingStrategy.elo => Screen.eloPlayerSelection,
+      PairingStrategy.random => Screen.randomPlayerSelection,
+      null => Screen.landing,
+    };
   }
 
   bool _generateMatchesForStandardSession({
@@ -456,8 +590,8 @@ class SprintController extends StateNotifier<AppState> {
     var iterations = 0;
 
     bool allScheduledToTarget() => participantIds.every(
-        (id) => (scheduledCounts[id] ?? 0) >= resolvedTarget,
-      );
+      (id) => (scheduledCounts[id] ?? 0) >= resolvedTarget,
+    );
 
     while (!allScheduledToTarget()) {
       iterations += 1;
@@ -850,14 +984,19 @@ class SprintController extends StateNotifier<AppState> {
         sessionState.phase == LocalSessionPhase.connected) {
       nextState = nextState.copyWith(
         screen: Screen.leaderboard,
+        leaderboardSource: LeaderboardSource.local,
+        isSettingsOpen: false,
         clearSelectedPlayerId: true,
       );
     }
 
     if (sessionState.role == LocalSessionRole.client &&
-        sessionState.phase == LocalSessionPhase.connected) {
+        sessionState.phase == LocalSessionPhase.disconnected) {
       nextState = nextState.copyWith(
-        leaderboardSource: LeaderboardSource.local,
+        screen: Screen.landing,
+        leaderboardSource: LeaderboardSource.db,
+        isSettingsOpen: false,
+        clearSelectedPlayerId: true,
       );
     }
 
@@ -909,8 +1048,12 @@ class SprintController extends StateNotifier<AppState> {
       syncState: projectedSync,
       kFactor: projectedKFactor,
       themePreference: _dbThemePreference,
+      remoteSyncEnabled: _dbRemoteSyncEnabled,
+      useClientAudio: _dbUseClientAudio,
+      manualFullscreenEnabled: _dbManualFullscreenEnabled,
     );
 
+    _syncImmersiveModeForState(state);
     _publishHostedSnapshots();
   }
 
@@ -946,10 +1089,12 @@ class SprintController extends StateNotifier<AppState> {
     );
   }
 
-  bool _shouldUseFullscreenLeaderboard(AppState value) => value.screen == Screen.leaderboard &&
-        value.leaderboardSource == LeaderboardSource.local &&
-        value.localSessionState.role == LocalSessionRole.client &&
-        value.localSessionState.phase == LocalSessionPhase.connected;
+  bool _shouldUseFullscreenLeaderboard(AppState value) =>
+      value.manualFullscreenEnabled ||
+      (value.screen == Screen.leaderboard &&
+          value.leaderboardSource == LeaderboardSource.local &&
+          value.localSessionState.role == LocalSessionRole.client &&
+          value.localSessionState.phase == LocalSessionPhase.connected);
 
   @override
   void dispose() {
@@ -1024,8 +1169,9 @@ List<UiRoundMatch> reorderRoundMatchesToAvoidFirstMatchPlayers(
     return matches;
   }
 
-  bool containsExcluded(UiRoundMatch match) => excludedPlayerIds.contains(match.player1.id) ||
-        excludedPlayerIds.contains(match.player2.id);
+  bool containsExcluded(UiRoundMatch match) =>
+      excludedPlayerIds.contains(match.player1.id) ||
+      excludedPlayerIds.contains(match.player2.id);
 
   if (!containsExcluded(matches.first)) {
     return matches;

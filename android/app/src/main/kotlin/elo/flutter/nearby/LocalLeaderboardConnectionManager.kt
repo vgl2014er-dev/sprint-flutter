@@ -18,8 +18,11 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import com.google.android.gms.common.api.Status
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 class LocalLeaderboardConnectionManager(
     context: Context,
@@ -32,10 +35,13 @@ class LocalLeaderboardConnectionManager(
 
     private val _receivedSnapshot = MutableStateFlow<LocalLeaderboardSnapshot?>(null)
     override val receivedSnapshot: StateFlow<LocalLeaderboardSnapshot?> = _receivedSnapshot.asStateFlow()
+    private val _controlEvents = MutableSharedFlow<LocalControlMessage>(extraBufferCapacity = 8)
+    override val controlEvents: Flow<LocalControlMessage> = _controlEvents.asSharedFlow()
 
     private var activeRole: LocalSessionRole = LocalSessionRole.NONE
     private var localEndpointName: String? = null
     private var pendingEndpointId: String? = null
+    private var requestedEndpointId: String? = null
     private var connectedEndpointId: String? = null
     private var latestHostedSnapshot: LocalLeaderboardSnapshot? = null
 
@@ -61,6 +67,7 @@ class LocalLeaderboardConnectionManager(
         connectedEndpointId?.let(connectionsClient::disconnectFromEndpoint)
         connectionsClient.stopAllEndpoints()
         pendingEndpointId = null
+        requestedEndpointId = null
         connectedEndpointId = null
         activeRole = LocalSessionRole.NONE
         _sessionState.value = LocalSessionState()
@@ -70,6 +77,7 @@ class LocalLeaderboardConnectionManager(
         this.localEndpointName = localEndpointName
         activeRole = LocalSessionRole.CLIENT
         pendingEndpointId = null
+        requestedEndpointId = null
         connectedEndpointId = null
         _sessionState.value = LocalSessionState(
             role = LocalSessionRole.CLIENT,
@@ -89,9 +97,19 @@ class LocalLeaderboardConnectionManager(
     }
 
     override fun connectToHost(endpointId: String) {
+        if (connectedEndpointId != null) {
+            return
+        }
+        if (requestedEndpointId != null && requestedEndpointId != endpointId) {
+            return
+        }
+        if (pendingEndpointId != null && pendingEndpointId != endpointId) {
+            return
+        }
         val endpointName = sessionState.value.discoveredHosts.firstOrNull { it.endpointId == endpointId }?.displayName
         val requesterName = localEndpointName ?: DEFAULT_ENDPOINT_NAME
         activeRole = LocalSessionRole.CLIENT
+        requestedEndpointId = endpointId
         _sessionState.value = sessionState.value.copy(
             role = LocalSessionRole.CLIENT,
             phase = LocalSessionPhase.CONNECTING,
@@ -104,6 +122,9 @@ class LocalLeaderboardConnectionManager(
             endpointId,
             connectionLifecycleCallback,
         ).addOnFailureListener { error ->
+            if (requestedEndpointId == endpointId) {
+                requestedEndpointId = null
+            }
             publishError(
                 LocalSessionRole.CLIENT,
                 requesterName,
@@ -135,6 +156,9 @@ class LocalLeaderboardConnectionManager(
                 )
             }
         pendingEndpointId = null
+        if (requestedEndpointId == endpointId) {
+            requestedEndpointId = null
+        }
         _sessionState.value = _sessionState.value.copy(
             phase = phaseAfterPendingCleared(activeRole),
             connectionMedium = LocalConnectionMedium.UNKNOWN,
@@ -147,6 +171,7 @@ class LocalLeaderboardConnectionManager(
     override fun disconnect() {
         connectedEndpointId?.let(connectionsClient::disconnectFromEndpoint)
         pendingEndpointId = null
+        requestedEndpointId = null
         connectedEndpointId = null
         connectionsClient.stopAllEndpoints()
         connectionsClient.stopDiscovery()
@@ -179,6 +204,7 @@ class LocalLeaderboardConnectionManager(
         connectionsClient.stopDiscovery()
         connectionsClient.stopAllEndpoints()
         pendingEndpointId = null
+        requestedEndpointId = null
         connectedEndpointId = null
         activeRole = LocalSessionRole.NONE
         _receivedSnapshot.value = null
@@ -190,7 +216,7 @@ class LocalLeaderboardConnectionManager(
         val hostedSnapshot = snapshot.copy(hostDisplayName = hostName)
         latestHostedSnapshot = hostedSnapshot
         val endpointId = connectedEndpointId ?: return
-        connectionsClient.sendPayload(endpointId, Payload.fromBytes(LocalLeaderboardSnapshotCodec.encode(hostedSnapshot)))
+        connectionsClient.sendPayload(endpointId, Payload.fromBytes(LocalLeaderboardSnapshotCodec.encodeSnapshot(hostedSnapshot)))
             .addOnFailureListener { error ->
                 publishError(
                     LocalSessionRole.HOST,
@@ -200,9 +226,26 @@ class LocalLeaderboardConnectionManager(
             }
     }
 
+    override fun sendControl(control: LocalControlMessage) {
+        if (activeRole != LocalSessionRole.HOST) {
+            return
+        }
+        val endpointId = connectedEndpointId ?: return
+        val hostName = _sessionState.value.localEndpointName ?: DEFAULT_ENDPOINT_NAME
+        connectionsClient.sendPayload(endpointId, Payload.fromBytes(LocalLeaderboardSnapshotCodec.encodeControl(control)))
+            .addOnFailureListener { error ->
+                publishError(
+                    LocalSessionRole.HOST,
+                    hostName,
+                    error.message ?: "Failed to send local control payload",
+                )
+            }
+    }
+
     private fun resetSession(role: LocalSessionRole, phase: LocalSessionPhase) {
         activeRole = role
         pendingEndpointId = null
+        requestedEndpointId = null
         connectedEndpointId = null
         _sessionState.value = LocalSessionState(
             role = role,
@@ -252,13 +295,34 @@ class LocalLeaderboardConnectionManager(
                     .sortedBy { it.displayName },
                 errorMessage = null,
             )
+
+            if (AUTO_CONNECT_ENABLED &&
+                connectedEndpointId == null &&
+                pendingEndpointId == null &&
+                requestedEndpointId == null
+            ) {
+                connectToHost(endpointId)
+            }
         }
 
         override fun onEndpointLost(endpointId: String) {
             if (activeRole != LocalSessionRole.CLIENT) return
+            if (requestedEndpointId == endpointId) {
+                requestedEndpointId = null
+            }
             _sessionState.value = _sessionState.value.copy(
                 discoveredHosts = _sessionState.value.discoveredHosts.filterNot { it.endpointId == endpointId },
             )
+
+            val nextHost = _sessionState.value.discoveredHosts.firstOrNull()
+            if (AUTO_CONNECT_ENABLED &&
+                connectedEndpointId == null &&
+                pendingEndpointId == null &&
+                requestedEndpointId == null &&
+                nextHost != null
+            ) {
+                connectToHost(nextHost.endpointId)
+            }
         }
     }
 
@@ -270,22 +334,33 @@ class LocalLeaderboardConnectionManager(
             }
 
             pendingEndpointId = endpointId
+            requestedEndpointId = endpointId
+            val autoAcceptEnabled = AUTO_CONNECT_ENABLED
             @Suppress("DEPRECATION")
             val authToken = info.authenticationToken
             _sessionState.value = _sessionState.value.copy(
                 role = activeRole,
-                phase = LocalSessionPhase.AWAITING_APPROVAL,
+                phase = if (autoAcceptEnabled) {
+                    LocalSessionPhase.CONNECTING
+                } else {
+                    LocalSessionPhase.AWAITING_APPROVAL
+                },
                 connectionMedium = LocalConnectionMedium.UNKNOWN,
                 pendingConnectionName = info.endpointName,
                 authToken = authToken,
                 errorMessage = null,
             )
+
+            if (autoAcceptEnabled) {
+                acceptPendingConnection()
+            }
         }
 
         override fun onConnectionResult(endpointId: String, resolution: ConnectionResolution) {
             val status = resolution.status
             if (status.isSuccess) {
                 pendingEndpointId = null
+                requestedEndpointId = null
                 connectedEndpointId = endpointId
                 if (activeRole == LocalSessionRole.CLIENT) {
                     connectionsClient.stopDiscovery()
@@ -304,6 +379,7 @@ class LocalLeaderboardConnectionManager(
             }
 
             pendingEndpointId = null
+            requestedEndpointId = null
             connectedEndpointId = null
             val errorMessage = status.statusMessage?.takeIf { it.isNotBlank() }
                 ?: "Connection failed (${status.statusCode})"
@@ -325,6 +401,9 @@ class LocalLeaderboardConnectionManager(
         override fun onDisconnected(endpointId: String) {
             if (connectedEndpointId == endpointId) {
                 connectedEndpointId = null
+            }
+            if (requestedEndpointId == endpointId) {
+                requestedEndpointId = null
             }
             _sessionState.value = _sessionState.value.copy(
                 role = activeRole,
@@ -360,8 +439,8 @@ class LocalLeaderboardConnectionManager(
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             val bytes = payload.asBytes() ?: return
-            val snapshot = LocalLeaderboardSnapshotCodec.decode(bytes)
-            if (snapshot == null) {
+            val decodedPayload = LocalLeaderboardSnapshotCodec.decode(bytes)
+            if (decodedPayload == null) {
                 publishError(
                     LocalSessionRole.CLIENT,
                     localEndpointName,
@@ -369,14 +448,23 @@ class LocalLeaderboardConnectionManager(
                 )
                 return
             }
-            _receivedSnapshot.value = snapshot
-            _sessionState.value = _sessionState.value.copy(
-                role = LocalSessionRole.CLIENT,
-                phase = LocalSessionPhase.CONNECTED,
-                connectedHostName = snapshot.hostDisplayName,
-                lastLocalUpdateEpochMillis = System.currentTimeMillis(),
-                errorMessage = null,
-            )
+            when (decodedPayload) {
+                is LocalNearbyPayload.Snapshot -> {
+                    val snapshot = decodedPayload.snapshot
+                    _receivedSnapshot.value = snapshot
+                    _sessionState.value = _sessionState.value.copy(
+                        role = LocalSessionRole.CLIENT,
+                        phase = LocalSessionPhase.CONNECTED,
+                        connectedHostName = snapshot.hostDisplayName,
+                        lastLocalUpdateEpochMillis = System.currentTimeMillis(),
+                        errorMessage = null,
+                    )
+                }
+
+                is LocalNearbyPayload.Control -> {
+                    _controlEvents.tryEmit(decodedPayload.control)
+                }
+            }
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
@@ -385,6 +473,7 @@ class LocalLeaderboardConnectionManager(
     companion object {
         private const val TAG = "LocalLeaderboardConn"
         private const val DEFAULT_ENDPOINT_NAME = "Sprint Device"
+        private const val AUTO_CONNECT_ENABLED = true
     }
 
     private fun mediumFromBandwidthQuality(@BandwidthInfo.Quality quality: Int): LocalConnectionMedium {

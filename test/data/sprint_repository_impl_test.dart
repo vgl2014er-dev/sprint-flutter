@@ -135,5 +135,54 @@ void main() {
         expect(await repository.themePreference.first, AppThemePreference.dark);
       },
     );
+
+    test(
+      'persists remote-sync, client-audio and fullscreen settings locally',
+      () async {
+        expect(await repository.remoteSyncEnabled.first, isFalse);
+        expect(await repository.useClientAudio.first, isFalse);
+        expect(await repository.manualFullscreenEnabled.first, isFalse);
+
+        await repository.setRemoteSyncEnabled(false);
+        await repository.setUseClientAudio(true);
+        await repository.setManualFullscreenEnabled(true);
+        await _flush();
+
+        expect(await database.getSetting('remote_sync_enabled'), 'false');
+        expect(await database.getSetting('use_client_audio'), 'true');
+        expect(await database.getSetting('manual_fullscreen_enabled'), 'true');
+      },
+    );
+
+    test(
+      'blocks cloud actions while sync is off and keeps local reset functional',
+      () async {
+        final seededPlayers = await repository.players.first;
+        final p1 = seededPlayers[0];
+        final p2 = seededPlayers[1];
+
+        await repository.submitRoundResults(<RoundResultInput>[
+          RoundResultInput(p1Id: p1.id, p2Id: p2.id, result: MatchResult.p1),
+        ]);
+        await _flush();
+        expect(await repository.history.first, isNotEmpty);
+
+        await repository.seedCloudData();
+        await repository.resetCloudData();
+        await _flush();
+
+        expect(await repository.history.first, isNotEmpty);
+
+        await repository.resetLocalData();
+        await _flush();
+
+        expect(await repository.history.first, isEmpty);
+        final players = await repository.players.first;
+        expect(
+          players.every((player) => player.elo == Defaults.initialElo),
+          isTrue,
+        );
+      },
+    );
   });
 }

@@ -273,6 +273,26 @@ enum LocalConnectionMedium {
   }
 }
 
+enum LocalControlEvent {
+  startMatchBeep;
+
+  String toWire() {
+    switch (this) {
+      case LocalControlEvent.startMatchBeep:
+        return 'start_match_beep';
+    }
+  }
+
+  static LocalControlEvent? fromWire(String? value) {
+    switch (value) {
+      case 'start_match_beep':
+        return LocalControlEvent.startMatchBeep;
+      default:
+        return null;
+    }
+  }
+}
+
 class Player {
   const Player({
     required this.id,
@@ -301,48 +321,50 @@ class Player {
     int? draws,
     int? matchesPlayed,
   }) => Player(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      elo: elo ?? this.elo,
-      wins: wins ?? this.wins,
-      losses: losses ?? this.losses,
-      draws: draws ?? this.draws,
-      matchesPlayed: matchesPlayed ?? this.matchesPlayed,
-    );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    elo: elo ?? this.elo,
+    wins: wins ?? this.wins,
+    losses: losses ?? this.losses,
+    draws: draws ?? this.draws,
+    matchesPlayed: matchesPlayed ?? this.matchesPlayed,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'id': id,
-      'name': name,
-      'elo': elo,
-      'wins': wins,
-      'losses': losses,
-      'draws': draws,
-      'matchesPlayed': matchesPlayed,
-    };
+    'id': id,
+    'name': name,
+    'elo': elo,
+    'wins': wins,
+    'losses': losses,
+    'draws': draws,
+    'matchesPlayed': matchesPlayed,
+  };
 
   factory Player.fromJson(Map<String, Object?> json) => Player(
-      id: (json['id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
-      elo: _toInt(json['elo'], 1200),
-      wins: _toInt(json['wins'], 0),
-      losses: _toInt(json['losses'], 0),
-      draws: _toInt(json['draws'], 0),
-      matchesPlayed: _toInt(json['matchesPlayed'], 0),
-    );
+    id: (json['id'] ?? '').toString(),
+    name: (json['name'] ?? '').toString(),
+    elo: _toInt(json['elo'], 1200),
+    wins: _toInt(json['wins'], 0),
+    losses: _toInt(json['losses'], 0),
+    draws: _toInt(json['draws'], 0),
+    matchesPlayed: _toInt(json['matchesPlayed'], 0),
+  );
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-        other is Player &&
-            id == other.id &&
-            name == other.name &&
-            elo == other.elo &&
-            wins == other.wins &&
-            losses == other.losses &&
-            draws == other.draws &&
-            matchesPlayed == other.matchesPlayed;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Player &&
+          id == other.id &&
+          name == other.name &&
+          elo == other.elo &&
+          wins == other.wins &&
+          losses == other.losses &&
+          draws == other.draws &&
+          matchesPlayed == other.matchesPlayed;
 
   @override
-  int get hashCode => Object.hash(id, name, elo, wins, losses, draws, matchesPlayed);
+  int get hashCode =>
+      Object.hash(id, name, elo, wins, losses, draws, matchesPlayed);
 }
 
 class MatchHistoryEntry {
@@ -373,65 +395,67 @@ class MatchHistoryEntry {
   final int timestamp;
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'id': id,
-      'p1Id': p1Id,
-      'p2Id': p2Id,
-      'p1Name': p1Name,
-      'p2Name': p2Name,
-      'p1EloBefore': p1EloBefore,
-      'p2EloBefore': p2EloBefore,
-      'p1EloAfter': p1EloAfter,
-      'p2EloAfter': p2EloAfter,
-      'result': result.toWire(),
-      'timestamp': timestamp,
-    };
+    'id': id,
+    'p1Id': p1Id,
+    'p2Id': p2Id,
+    'p1Name': p1Name,
+    'p2Name': p2Name,
+    'p1EloBefore': p1EloBefore,
+    'p2EloBefore': p2EloBefore,
+    'p1EloAfter': p1EloAfter,
+    'p2EloAfter': p2EloAfter,
+    'result': result.toWire(),
+    'timestamp': timestamp,
+  };
 
-  factory MatchHistoryEntry.fromJson(Map<String, Object?> json) => MatchHistoryEntry(
-      id: (json['id'] ?? '').toString(),
-      p1Id: (json['p1Id'] ?? '').toString(),
-      p2Id: (json['p2Id'] ?? '').toString(),
-      p1Name: (json['p1Name'] ?? '').toString(),
-      p2Name: (json['p2Name'] ?? '').toString(),
-      p1EloBefore: _toInt(json['p1EloBefore'], 1200),
-      p2EloBefore: _toInt(json['p2EloBefore'], 1200),
-      p1EloAfter: _toInt(json['p1EloAfter'], 1200),
-      p2EloAfter: _toInt(json['p2EloAfter'], 1200),
-      result: MatchResult.fromWire(json['result']?.toString()),
-      timestamp: _toInt(
-        json['timestamp'],
-        DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
+  factory MatchHistoryEntry.fromJson(Map<String, Object?> json) =>
+      MatchHistoryEntry(
+        id: (json['id'] ?? '').toString(),
+        p1Id: (json['p1Id'] ?? '').toString(),
+        p2Id: (json['p2Id'] ?? '').toString(),
+        p1Name: (json['p1Name'] ?? '').toString(),
+        p2Name: (json['p2Name'] ?? '').toString(),
+        p1EloBefore: _toInt(json['p1EloBefore'], 1200),
+        p2EloBefore: _toInt(json['p2EloBefore'], 1200),
+        p1EloAfter: _toInt(json['p1EloAfter'], 1200),
+        p2EloAfter: _toInt(json['p2EloAfter'], 1200),
+        result: MatchResult.fromWire(json['result']?.toString()),
+        timestamp: _toInt(
+          json['timestamp'],
+          DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-        other is MatchHistoryEntry &&
-            id == other.id &&
-            p1Id == other.p1Id &&
-            p2Id == other.p2Id &&
-            p1Name == other.p1Name &&
-            p2Name == other.p2Name &&
-            p1EloBefore == other.p1EloBefore &&
-            p2EloBefore == other.p2EloBefore &&
-            p1EloAfter == other.p1EloAfter &&
-            p2EloAfter == other.p2EloAfter &&
-            result == other.result &&
-            timestamp == other.timestamp;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MatchHistoryEntry &&
+          id == other.id &&
+          p1Id == other.p1Id &&
+          p2Id == other.p2Id &&
+          p1Name == other.p1Name &&
+          p2Name == other.p2Name &&
+          p1EloBefore == other.p1EloBefore &&
+          p2EloBefore == other.p2EloBefore &&
+          p1EloAfter == other.p1EloAfter &&
+          p2EloAfter == other.p2EloAfter &&
+          result == other.result &&
+          timestamp == other.timestamp;
 
   @override
   int get hashCode => Object.hash(
-      id,
-      p1Id,
-      p2Id,
-      p1Name,
-      p2Name,
-      p1EloBefore,
-      p2EloBefore,
-      p1EloAfter,
-      p2EloAfter,
-      result,
-      timestamp,
-    );
+    id,
+    p1Id,
+    p2Id,
+    p1Name,
+    p2Name,
+    p1EloBefore,
+    p2EloBefore,
+    p1EloAfter,
+    p2EloAfter,
+    result,
+    timestamp,
+  );
 }
 
 class RoundResultInput {
@@ -475,54 +499,56 @@ class UiRoundMatch {
     bool? played,
     bool? started,
   }) => UiRoundMatch(
-      id: id ?? this.id,
-      player1: player1 ?? this.player1,
-      player2: player2 ?? this.player2,
-      winnerId: winnerIdToNull ? null : (winnerId ?? this.winnerId),
-      isDraw: isDraw ?? this.isDraw,
-      played: played ?? this.played,
-      started: started ?? this.started,
-    );
+    id: id ?? this.id,
+    player1: player1 ?? this.player1,
+    player2: player2 ?? this.player2,
+    winnerId: winnerIdToNull ? null : (winnerId ?? this.winnerId),
+    isDraw: isDraw ?? this.isDraw,
+    played: played ?? this.played,
+    started: started ?? this.started,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'id': id,
-      'player1': player1.toJson(),
-      'player2': player2.toJson(),
-      'winnerId': winnerId,
-      'isDraw': isDraw,
-      'played': played,
-      'started': started,
-    };
+    'id': id,
+    'player1': player1.toJson(),
+    'player2': player2.toJson(),
+    'winnerId': winnerId,
+    'isDraw': isDraw,
+    'played': played,
+    'started': started,
+  };
 
   factory UiRoundMatch.fromJson(Map<String, Object?> json) => UiRoundMatch(
-      id: (json['id'] ?? '').toString(),
-      player1: Player.fromJson(
-        (json['player1'] as Map?)?.cast<String, Object?>() ??
-            const <String, Object?>{},
-      ),
-      player2: Player.fromJson(
-        (json['player2'] as Map?)?.cast<String, Object?>() ??
-            const <String, Object?>{},
-      ),
-      winnerId: json['winnerId']?.toString(),
-      isDraw: json['isDraw'] == true,
-      played: json['played'] == true,
-      started: json['started'] == true,
-    );
+    id: (json['id'] ?? '').toString(),
+    player1: Player.fromJson(
+      (json['player1'] as Map?)?.cast<String, Object?>() ??
+          const <String, Object?>{},
+    ),
+    player2: Player.fromJson(
+      (json['player2'] as Map?)?.cast<String, Object?>() ??
+          const <String, Object?>{},
+    ),
+    winnerId: json['winnerId']?.toString(),
+    isDraw: json['isDraw'] == true,
+    played: json['played'] == true,
+    started: json['started'] == true,
+  );
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-        other is UiRoundMatch &&
-            id == other.id &&
-            player1 == other.player1 &&
-            player2 == other.player2 &&
-            winnerId == other.winnerId &&
-            isDraw == other.isDraw &&
-            played == other.played &&
-            started == other.started;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiRoundMatch &&
+          id == other.id &&
+          player1 == other.player1 &&
+          player2 == other.player2 &&
+          winnerId == other.winnerId &&
+          isDraw == other.isDraw &&
+          played == other.played &&
+          started == other.started;
 
   @override
-  int get hashCode => Object.hash(id, player1, player2, winnerId, isDraw, played, started);
+  int get hashCode =>
+      Object.hash(id, player1, player2, winnerId, isDraw, played, started);
 }
 
 class SyncState {
@@ -536,17 +562,18 @@ class SyncState {
     int? lastSyncedEpochMillis,
     bool clearLastSynced = false,
   }) => SyncState(
-      isSyncing: isSyncing ?? this.isSyncing,
-      lastSyncedEpochMillis: clearLastSynced
-          ? null
-          : (lastSyncedEpochMillis ?? this.lastSyncedEpochMillis),
-    );
+    isSyncing: isSyncing ?? this.isSyncing,
+    lastSyncedEpochMillis: clearLastSynced
+        ? null
+        : (lastSyncedEpochMillis ?? this.lastSyncedEpochMillis),
+  );
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-        other is SyncState &&
-            isSyncing == other.isSyncing &&
-            lastSyncedEpochMillis == other.lastSyncedEpochMillis;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncState &&
+          isSyncing == other.isSyncing &&
+          lastSyncedEpochMillis == other.lastSyncedEpochMillis;
 
   @override
   int get hashCode => Object.hash(isSyncing, lastSyncedEpochMillis);
@@ -559,20 +586,21 @@ class DiscoveredHost {
   final String displayName;
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'endpointId': endpointId,
-      'displayName': displayName,
-    };
+    'endpointId': endpointId,
+    'displayName': displayName,
+  };
 
   factory DiscoveredHost.fromJson(Map<String, Object?> json) => DiscoveredHost(
-      endpointId: (json['endpointId'] ?? '').toString(),
-      displayName: (json['displayName'] ?? '').toString(),
-    );
+    endpointId: (json['endpointId'] ?? '').toString(),
+    displayName: (json['displayName'] ?? '').toString(),
+  );
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-        other is DiscoveredHost &&
-            endpointId == other.endpointId &&
-            displayName == other.displayName;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DiscoveredHost &&
+          endpointId == other.endpointId &&
+          displayName == other.displayName;
 
   @override
   int get hashCode => Object.hash(endpointId, displayName);
@@ -621,42 +649,42 @@ class LocalSessionState {
     String? errorMessage,
     bool clearErrorMessage = false,
   }) => LocalSessionState(
-      role: role ?? this.role,
-      phase: phase ?? this.phase,
-      connectionMedium: connectionMedium ?? this.connectionMedium,
-      discoveredHosts: discoveredHosts ?? this.discoveredHosts,
-      pendingConnectionName: clearPendingConnectionName
-          ? null
-          : (pendingConnectionName ?? this.pendingConnectionName),
-      connectedHostName: clearConnectedHostName
-          ? null
-          : (connectedHostName ?? this.connectedHostName),
-      localEndpointName: clearLocalEndpointName
-          ? null
-          : (localEndpointName ?? this.localEndpointName),
-      authToken: clearAuthToken ? null : (authToken ?? this.authToken),
-      lastLocalUpdateEpochMillis: clearLastLocalUpdateEpochMillis
-          ? null
-          : (lastLocalUpdateEpochMillis ?? this.lastLocalUpdateEpochMillis),
-      errorMessage: clearErrorMessage
-          ? null
-          : (errorMessage ?? this.errorMessage),
-    );
+    role: role ?? this.role,
+    phase: phase ?? this.phase,
+    connectionMedium: connectionMedium ?? this.connectionMedium,
+    discoveredHosts: discoveredHosts ?? this.discoveredHosts,
+    pendingConnectionName: clearPendingConnectionName
+        ? null
+        : (pendingConnectionName ?? this.pendingConnectionName),
+    connectedHostName: clearConnectedHostName
+        ? null
+        : (connectedHostName ?? this.connectedHostName),
+    localEndpointName: clearLocalEndpointName
+        ? null
+        : (localEndpointName ?? this.localEndpointName),
+    authToken: clearAuthToken ? null : (authToken ?? this.authToken),
+    lastLocalUpdateEpochMillis: clearLastLocalUpdateEpochMillis
+        ? null
+        : (lastLocalUpdateEpochMillis ?? this.lastLocalUpdateEpochMillis),
+    errorMessage: clearErrorMessage
+        ? null
+        : (errorMessage ?? this.errorMessage),
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'role': role.toWire(),
-      'phase': phase.toWire(),
-      'connectionMedium': connectionMedium.toWire(),
-      'discoveredHosts': discoveredHosts
-          .map((host) => host.toJson())
-          .toList(growable: false),
-      'pendingConnectionName': pendingConnectionName,
-      'connectedHostName': connectedHostName,
-      'localEndpointName': localEndpointName,
-      'authToken': authToken,
-      'lastLocalUpdateEpochMillis': lastLocalUpdateEpochMillis,
-      'errorMessage': errorMessage,
-    };
+    'role': role.toWire(),
+    'phase': phase.toWire(),
+    'connectionMedium': connectionMedium.toWire(),
+    'discoveredHosts': discoveredHosts
+        .map((host) => host.toJson())
+        .toList(growable: false),
+    'pendingConnectionName': pendingConnectionName,
+    'connectedHostName': connectedHostName,
+    'localEndpointName': localEndpointName,
+    'authToken': authToken,
+    'lastLocalUpdateEpochMillis': lastLocalUpdateEpochMillis,
+    'errorMessage': errorMessage,
+  };
 
   factory LocalSessionState.fromJson(Map<String, Object?> json) {
     final discoveredHostsRaw = (json['discoveredHosts'] as List?) ?? const [];
@@ -702,17 +730,17 @@ class LocalSessionState {
 
   @override
   int get hashCode => Object.hash(
-      role,
-      phase,
-      connectionMedium,
-      const DeepCollectionEquality().hash(discoveredHosts),
-      pendingConnectionName,
-      connectedHostName,
-      localEndpointName,
-      authToken,
-      lastLocalUpdateEpochMillis,
-      errorMessage,
-    );
+    role,
+    phase,
+    connectionMedium,
+    const DeepCollectionEquality().hash(discoveredHosts),
+    pendingConnectionName,
+    connectedHostName,
+    localEndpointName,
+    authToken,
+    lastLocalUpdateEpochMillis,
+    errorMessage,
+  );
 }
 
 class LocalLeaderboardSnapshot {
@@ -731,24 +759,25 @@ class LocalLeaderboardSnapshot {
   final List<Player> players;
 
   Map<String, Object?> toJson() => <String, Object?>{
-      'hostDisplayName': hostDisplayName,
-      'generatedAtEpochMillis': generatedAtEpochMillis,
-      'kFactor': kFactor,
-      'lastSyncedEpochMillis': lastSyncedEpochMillis,
-      'players': players
-          .map((player) => player.toJson())
-          .toList(growable: false),
-    };
+    'hostDisplayName': hostDisplayName,
+    'generatedAtEpochMillis': generatedAtEpochMillis,
+    'kFactor': kFactor,
+    'lastSyncedEpochMillis': lastSyncedEpochMillis,
+    'players': players.map((player) => player.toJson()).toList(growable: false),
+  };
 
-  factory LocalLeaderboardSnapshot.fromJson(Map<String, Object?> json) => LocalLeaderboardSnapshot(
-      hostDisplayName: (json['hostDisplayName'] ?? '').toString(),
-      generatedAtEpochMillis: _toInt(json['generatedAtEpochMillis'], 0),
-      kFactor: _toInt(json['kFactor'], 32),
-      lastSyncedEpochMillis: _toNullableInt(json['lastSyncedEpochMillis']),
-      players: ((json['players'] as List?) ?? const [])
-          .map((item) => Player.fromJson((item as Map).cast<String, Object?>()))
-          .toList(growable: false),
-    );
+  factory LocalLeaderboardSnapshot.fromJson(Map<String, Object?> json) =>
+      LocalLeaderboardSnapshot(
+        hostDisplayName: (json['hostDisplayName'] ?? '').toString(),
+        generatedAtEpochMillis: _toInt(json['generatedAtEpochMillis'], 0),
+        kFactor: _toInt(json['kFactor'], 32),
+        lastSyncedEpochMillis: _toNullableInt(json['lastSyncedEpochMillis']),
+        players: ((json['players'] as List?) ?? const [])
+            .map(
+              (item) => Player.fromJson((item as Map).cast<String, Object?>()),
+            )
+            .toList(growable: false),
+      );
 
   @override
   bool operator ==(Object other) {
@@ -764,12 +793,12 @@ class LocalLeaderboardSnapshot {
 
   @override
   int get hashCode => Object.hash(
-      hostDisplayName,
-      generatedAtEpochMillis,
-      kFactor,
-      lastSyncedEpochMillis,
-      const DeepCollectionEquality().hash(players),
-    );
+    hostDisplayName,
+    generatedAtEpochMillis,
+    kFactor,
+    lastSyncedEpochMillis,
+    const DeepCollectionEquality().hash(players),
+  );
 }
 
 class HeadToHeadSummary {
@@ -801,6 +830,10 @@ class AppState {
     required this.profileBackScreen,
     required this.leaderboardSource,
     required this.themePreference,
+    required this.isSettingsOpen,
+    required this.remoteSyncEnabled,
+    required this.useClientAudio,
+    required this.manualFullscreenEnabled,
     required this.localSessionState,
     required this.standardSessionStrategy,
     required this.standardSessionParticipantIds,
@@ -828,6 +861,10 @@ class AppState {
   final Screen profileBackScreen;
   final LeaderboardSource leaderboardSource;
   final AppThemePreference themePreference;
+  final bool isSettingsOpen;
+  final bool remoteSyncEnabled;
+  final bool useClientAudio;
+  final bool manualFullscreenEnabled;
   final LocalSessionState localSessionState;
   final PairingStrategy? standardSessionStrategy;
   final List<String> standardSessionParticipantIds;
@@ -843,14 +880,16 @@ class AppState {
   final String? deathMatchByePlayerId;
   final String? deathMatchChampionId;
 
-  bool get isLocalClientMode => leaderboardSource == LeaderboardSource.local &&
-        localSessionState.role == LocalSessionRole.client &&
-        localSessionState.phase == LocalSessionPhase.connected;
+  bool get isLocalClientMode =>
+      leaderboardSource == LeaderboardSource.local &&
+      localSessionState.role == LocalSessionRole.client &&
+      localSessionState.phase == LocalSessionPhase.connected;
 
   bool get isReadOnlyClientMode => isLocalClientMode;
 
-  bool get isStandardSession => standardSessionStrategy != null &&
-        standardSessionParticipantIds.length >= 2;
+  bool get isStandardSession =>
+      standardSessionStrategy != null &&
+      standardSessionParticipantIds.length >= 2;
 
   bool get isStandardSessionComplete {
     if (!isStandardSession) {
@@ -875,6 +914,10 @@ class AppState {
     Screen? profileBackScreen,
     LeaderboardSource? leaderboardSource,
     AppThemePreference? themePreference,
+    bool? isSettingsOpen,
+    bool? remoteSyncEnabled,
+    bool? useClientAudio,
+    bool? manualFullscreenEnabled,
     LocalSessionState? localSessionState,
     PairingStrategy? standardSessionStrategy,
     bool clearStandardSessionStrategy = false,
@@ -894,81 +937,90 @@ class AppState {
     String? deathMatchChampionId,
     bool clearDeathMatchChampionId = false,
   }) => AppState(
-      players: players ?? this.players,
-      history: history ?? this.history,
-      syncState: syncState ?? this.syncState,
-      kFactor: kFactor ?? this.kFactor,
-      screen: screen ?? this.screen,
-      roundMatches: roundMatches ?? this.roundMatches,
-      currentMatchIndex: currentMatchIndex ?? this.currentMatchIndex,
-      selectedPlayerId: clearSelectedPlayerId
-          ? null
-          : (selectedPlayerId ?? this.selectedPlayerId),
-      profileBackScreen: profileBackScreen ?? this.profileBackScreen,
-      leaderboardSource: leaderboardSource ?? this.leaderboardSource,
-      themePreference: themePreference ?? this.themePreference,
-      localSessionState: localSessionState ?? this.localSessionState,
-      standardSessionStrategy: clearStandardSessionStrategy
-          ? null
-          : (standardSessionStrategy ?? this.standardSessionStrategy),
-      standardSessionParticipantIds:
-          standardSessionParticipantIds ?? this.standardSessionParticipantIds,
-      standardSessionTargetMatchesPerPlayer:
-          standardSessionTargetMatchesPerPlayer ??
-          this.standardSessionTargetMatchesPerPlayer,
-      standardSessionCompletedMatchesByPlayerId:
-          standardSessionCompletedMatchesByPlayerId ??
-          this.standardSessionCompletedMatchesByPlayerId,
-      standardSessionScheduledMatchesByPlayerId:
-          standardSessionScheduledMatchesByPlayerId ??
-          this.standardSessionScheduledMatchesByPlayerId,
-      deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
-      deathMatchLives: deathMatchLives ?? this.deathMatchLives,
-      deathMatchParticipantIds:
-          deathMatchParticipantIds ?? this.deathMatchParticipantIds,
-      deathMatchPairingStrategy: clearDeathMatchPairingStrategy
-          ? null
-          : (deathMatchPairingStrategy ?? this.deathMatchPairingStrategy),
-      deathMatchLossesByPlayerId:
-          deathMatchLossesByPlayerId ?? this.deathMatchLossesByPlayerId,
-      deathMatchMatchesPlayedByPlayerId:
-          deathMatchMatchesPlayedByPlayerId ??
-          this.deathMatchMatchesPlayedByPlayerId,
-      deathMatchByePlayerId: clearDeathMatchByePlayerId
-          ? null
-          : (deathMatchByePlayerId ?? this.deathMatchByePlayerId),
-      deathMatchChampionId: clearDeathMatchChampionId
-          ? null
-          : (deathMatchChampionId ?? this.deathMatchChampionId),
-    );
+    players: players ?? this.players,
+    history: history ?? this.history,
+    syncState: syncState ?? this.syncState,
+    kFactor: kFactor ?? this.kFactor,
+    screen: screen ?? this.screen,
+    roundMatches: roundMatches ?? this.roundMatches,
+    currentMatchIndex: currentMatchIndex ?? this.currentMatchIndex,
+    selectedPlayerId: clearSelectedPlayerId
+        ? null
+        : (selectedPlayerId ?? this.selectedPlayerId),
+    profileBackScreen: profileBackScreen ?? this.profileBackScreen,
+    leaderboardSource: leaderboardSource ?? this.leaderboardSource,
+    themePreference: themePreference ?? this.themePreference,
+    isSettingsOpen: isSettingsOpen ?? this.isSettingsOpen,
+    remoteSyncEnabled: remoteSyncEnabled ?? this.remoteSyncEnabled,
+    useClientAudio: useClientAudio ?? this.useClientAudio,
+    manualFullscreenEnabled:
+        manualFullscreenEnabled ?? this.manualFullscreenEnabled,
+    localSessionState: localSessionState ?? this.localSessionState,
+    standardSessionStrategy: clearStandardSessionStrategy
+        ? null
+        : (standardSessionStrategy ?? this.standardSessionStrategy),
+    standardSessionParticipantIds:
+        standardSessionParticipantIds ?? this.standardSessionParticipantIds,
+    standardSessionTargetMatchesPerPlayer:
+        standardSessionTargetMatchesPerPlayer ??
+        this.standardSessionTargetMatchesPerPlayer,
+    standardSessionCompletedMatchesByPlayerId:
+        standardSessionCompletedMatchesByPlayerId ??
+        this.standardSessionCompletedMatchesByPlayerId,
+    standardSessionScheduledMatchesByPlayerId:
+        standardSessionScheduledMatchesByPlayerId ??
+        this.standardSessionScheduledMatchesByPlayerId,
+    deathMatchInProgress: deathMatchInProgress ?? this.deathMatchInProgress,
+    deathMatchLives: deathMatchLives ?? this.deathMatchLives,
+    deathMatchParticipantIds:
+        deathMatchParticipantIds ?? this.deathMatchParticipantIds,
+    deathMatchPairingStrategy: clearDeathMatchPairingStrategy
+        ? null
+        : (deathMatchPairingStrategy ?? this.deathMatchPairingStrategy),
+    deathMatchLossesByPlayerId:
+        deathMatchLossesByPlayerId ?? this.deathMatchLossesByPlayerId,
+    deathMatchMatchesPlayedByPlayerId:
+        deathMatchMatchesPlayedByPlayerId ??
+        this.deathMatchMatchesPlayedByPlayerId,
+    deathMatchByePlayerId: clearDeathMatchByePlayerId
+        ? null
+        : (deathMatchByePlayerId ?? this.deathMatchByePlayerId),
+    deathMatchChampionId: clearDeathMatchChampionId
+        ? null
+        : (deathMatchChampionId ?? this.deathMatchChampionId),
+  );
 
   static AppState initial() => const AppState(
-      players: <Player>[],
-      history: <MatchHistoryEntry>[],
-      syncState: SyncState(),
-      kFactor: 32,
-      screen: Screen.landing,
-      roundMatches: <UiRoundMatch>[],
-      currentMatchIndex: 0,
-      selectedPlayerId: null,
-      profileBackScreen: Screen.leaderboard,
-      leaderboardSource: LeaderboardSource.db,
-      themePreference: AppThemePreference.light,
-      localSessionState: LocalSessionState(),
-      standardSessionStrategy: null,
-      standardSessionParticipantIds: <String>[],
-      standardSessionTargetMatchesPerPlayer: 3,
-      standardSessionCompletedMatchesByPlayerId: <String, int>{},
-      standardSessionScheduledMatchesByPlayerId: <String, int>{},
-      deathMatchInProgress: false,
-      deathMatchLives: 2,
-      deathMatchParticipantIds: <String>[],
-      deathMatchPairingStrategy: null,
-      deathMatchLossesByPlayerId: <String, int>{},
-      deathMatchMatchesPlayedByPlayerId: <String, int>{},
-      deathMatchByePlayerId: null,
-      deathMatchChampionId: null,
-    );
+    players: <Player>[],
+    history: <MatchHistoryEntry>[],
+    syncState: SyncState(),
+    kFactor: 32,
+    screen: Screen.landing,
+    roundMatches: <UiRoundMatch>[],
+    currentMatchIndex: 0,
+    selectedPlayerId: null,
+    profileBackScreen: Screen.leaderboard,
+    leaderboardSource: LeaderboardSource.db,
+    themePreference: AppThemePreference.light,
+    isSettingsOpen: false,
+    remoteSyncEnabled: true,
+    useClientAudio: false,
+    manualFullscreenEnabled: false,
+    localSessionState: LocalSessionState(),
+    standardSessionStrategy: null,
+    standardSessionParticipantIds: <String>[],
+    standardSessionTargetMatchesPerPlayer: 3,
+    standardSessionCompletedMatchesByPlayerId: <String, int>{},
+    standardSessionScheduledMatchesByPlayerId: <String, int>{},
+    deathMatchInProgress: false,
+    deathMatchLives: 2,
+    deathMatchParticipantIds: <String>[],
+    deathMatchPairingStrategy: null,
+    deathMatchLossesByPlayerId: <String, int>{},
+    deathMatchMatchesPlayedByPlayerId: <String, int>{},
+    deathMatchByePlayerId: null,
+    deathMatchChampionId: null,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -988,6 +1040,10 @@ class AppState {
             profileBackScreen == other.profileBackScreen &&
             leaderboardSource == other.leaderboardSource &&
             themePreference == other.themePreference &&
+            isSettingsOpen == other.isSettingsOpen &&
+            remoteSyncEnabled == other.remoteSyncEnabled &&
+            useClientAudio == other.useClientAudio &&
+            manualFullscreenEnabled == other.manualFullscreenEnabled &&
             localSessionState == other.localSessionState &&
             standardSessionStrategy == other.standardSessionStrategy &&
             eq.equals(
@@ -1037,6 +1093,10 @@ class AppState {
     profileBackScreen,
     leaderboardSource,
     themePreference,
+    isSettingsOpen,
+    remoteSyncEnabled,
+    useClientAudio,
+    manualFullscreenEnabled,
     localSessionState,
     standardSessionStrategy,
     const DeepCollectionEquality().hash(standardSessionParticipantIds),

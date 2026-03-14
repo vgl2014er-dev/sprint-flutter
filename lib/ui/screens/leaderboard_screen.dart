@@ -46,13 +46,24 @@ class LeaderboardScreen extends StatelessWidget {
       state.localSessionState,
     );
 
-    _LeaderboardPlayerRow buildPlayerRow(Player player, int index) {
+    _LeaderboardPlayerRow buildPlayerRow(
+      Player player,
+      int index, {
+      double rowHeight = 84,
+      double bottomMargin = 12,
+      bool connectedHalf = false,
+      bool connectedLayout = false,
+    }) {
       final matches = player.wins + player.losses + player.draws;
       final winRate = matches == 0 ? 0 : (player.wins / matches * 100).round();
       return _LeaderboardPlayerRow(
         rank: index + 1,
         player: player,
         winRate: winRate,
+        rowHeight: rowHeight,
+        bottomMargin: bottomMargin,
+        connectedHalf: connectedHalf,
+        connectedLayout: connectedLayout,
         onTap: state.isReadOnlyClientMode ? null : () => onViewProfile(player),
         isHighlighted: highlightedPlayerIds.contains(player.id),
         eloDelta: latestEloDeltaByPlayerId[player.id],
@@ -64,41 +75,113 @@ class LeaderboardScreen extends StatelessWidget {
         Expanded(
           child: Column(
             children: <Widget>[
-              _LeaderboardHeaderRow(connectionBadgeLabel: connectionBadgeLabel),
-              const Divider(height: 1),
+              if (useConnectedDisplayForceFit)
+                _ConnectedLeaderboardHeader(
+                  connectionBadgeLabel: connectionBadgeLabel,
+                )
+              else ...<Widget>[
+                _LeaderboardHeaderRow(
+                  connectionBadgeLabel: connectionBadgeLabel,
+                ),
+                const Divider(height: 1),
+              ],
               Expanded(
                 child: useConnectedDisplayForceFit
                     ? LayoutBuilder(
                         builder: (context, constraints) {
-                          final rows = <Widget>[];
-                          for (
-                            var index = 0;
-                            index < sortedPlayers.length;
-                            index++
-                          ) {
-                            if (index > 0) {
-                              rows.add(const Divider(height: 1));
-                            }
-                            rows.add(
-                              buildPlayerRow(sortedPlayers[index], index),
-                            );
-                          }
+                          final totalPlayers = sortedPlayers.length;
+                          final availableHeight = constraints.maxHeight;
+                          final fullWidthCount =
+                              _connectedFullWidthCountForAvailableHeight(
+                                playerCount: totalPlayers,
+                                availableHeight: availableHeight,
+                              );
+                          final scale = _connectedScaleForAvailableHeight(
+                            playerCount: totalPlayers,
+                            fullWidthCount: fullWidthCount,
+                            availableHeight: availableHeight,
+                          );
+                          final rowHeightScale = scale;
+                          const rowBorderCompensation = 4.0;
+                          final fullRowHeight = math.max(
+                            8.0,
+                            (_connectedFullBaseHeight * rowHeightScale) -
+                                rowBorderCompensation,
+                          );
+                          final halfRowHeight = math.max(
+                            8.0,
+                            (_connectedHalfBaseHeight * rowHeightScale) -
+                                rowBorderCompensation,
+                          );
+                          final fullWidthPlayers = sortedPlayers
+                              .take(fullWidthCount)
+                              .toList(growable: false);
+                          final halfWidthPlayers = sortedPlayers
+                              .skip(fullWidthCount)
+                              .toList(growable: false);
+                          const connectedGap = 0.0;
+                          final layoutWidth = constraints.maxWidth > 1
+                              ? constraints.maxWidth
+                              : 1.0;
+                          final halfWidth = halfWidthPlayers.isEmpty
+                              ? layoutWidth
+                              : (layoutWidth - connectedGap) / 2;
+
+                          final rows = <Widget>[
+                            for (
+                              var index = 0;
+                              index < fullWidthPlayers.length;
+                              index++
+                            )
+                              KeyedSubtree(
+                                key: Key(
+                                  'connected-full-card-${fullWidthPlayers[index].id}',
+                                ),
+                                child: buildPlayerRow(
+                                  fullWidthPlayers[index],
+                                  index,
+                                  rowHeight: fullRowHeight,
+                                  bottomMargin: connectedGap,
+                                  connectedLayout: true,
+                                ),
+                              ),
+                            if (halfWidthPlayers.isNotEmpty)
+                              Wrap(
+                                spacing: connectedGap,
+                                runSpacing: connectedGap,
+                                children: <Widget>[
+                                  for (
+                                    var halfIndex = 0;
+                                    halfIndex < halfWidthPlayers.length;
+                                    halfIndex++
+                                  )
+                                    SizedBox(
+                                      width: halfWidth,
+                                      child: KeyedSubtree(
+                                        key: Key(
+                                          'connected-half-card-${halfWidthPlayers[halfIndex].id}',
+                                        ),
+                                        child: buildPlayerRow(
+                                          halfWidthPlayers[halfIndex],
+                                          fullWidthCount + halfIndex,
+                                          rowHeight: halfRowHeight,
+                                          bottomMargin: 0,
+                                          connectedHalf: true,
+                                          connectedLayout: true,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ];
 
                           return ClipRect(
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.topCenter,
-                                child: SizedBox(
-                                  width: constraints.maxWidth < 650
-                                      ? 650
-                                      : constraints.maxWidth,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: rows,
-                                  ),
-                                ),
+                            child: SizedBox(
+                              width: layoutWidth,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: rows,
                               ),
                             ),
                           );
@@ -248,6 +331,65 @@ class _LeaderboardHeaderRow extends StatelessWidget {
   }
 }
 
+class _ConnectedLeaderboardHeader extends StatelessWidget {
+  const _ConnectedLeaderboardHeader({this.connectionBadgeLabel});
+
+  final String? connectionBadgeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F141E),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const Icon(
+                Icons.emoji_events_rounded,
+                size: 28,
+                color: Color(0xFF00D2FF),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'LEADERBOARD',
+                style: textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'SEASON 04 • GLOBAL RANKINGS',
+            textAlign: TextAlign.center,
+            style: textTheme.labelMedium?.copyWith(
+              color: const Color(0xFF6B7A90),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2.8,
+            ),
+          ),
+          if (connectionBadgeLabel case final label?) ...<Widget>[
+            const SizedBox(height: 10),
+            _ConnectionMediumBadge(label: label),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ConnectionMediumBadge extends StatelessWidget {
   const _ConnectionMediumBadge({required this.label});
 
@@ -281,6 +423,10 @@ class _LeaderboardPlayerRow extends StatefulWidget {
     required this.rank,
     required this.player,
     required this.winRate,
+    required this.rowHeight,
+    required this.bottomMargin,
+    required this.connectedHalf,
+    required this.connectedLayout,
     required this.onTap,
     required this.isHighlighted,
     required this.eloDelta,
@@ -289,6 +435,10 @@ class _LeaderboardPlayerRow extends StatefulWidget {
   final int rank;
   final Player player;
   final int winRate;
+  final double rowHeight;
+  final double bottomMargin;
+  final bool connectedHalf;
+  final bool connectedLayout;
   final VoidCallback? onTap;
   final bool isHighlighted;
   final int? eloDelta;
@@ -334,6 +484,10 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
     final rank = widget.rank;
     final player = widget.player;
     final winRate = widget.winRate;
+    final rowHeight = widget.rowHeight;
+    final bottomMargin = widget.bottomMargin;
+    final connectedHalf = widget.connectedHalf;
+    final connectedLayout = widget.connectedLayout;
     final onTap = widget.onTap;
     final isHighlighted = widget.isHighlighted;
     final eloDelta = widget.eloDelta;
@@ -379,165 +533,193 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
             final showElo = cardWidth >= 200;
             final showWinRate = cardWidth >= 280;
             // Scale down for narrow cards (2-col grid)
-            final isNarrow = cardWidth < 280;
+            final isNarrow = cardWidth < 280 || connectedHalf || rowHeight < 72;
             final nameFontSize = isNarrow ? 18.0 : 26.0;
             final rankFontSize = isNarrow ? 16.0 : 20.0;
             final rankLabelSize = isNarrow ? 8.0 : 9.6;
             final badgeSize = isNarrow ? 40.0 : 52.0;
             final badgeMargin = isNarrow ? 10.0 : 20.0;
             final nameLabelSize = isNarrow ? 10.0 : 14.0;
+            final horizontalPadding = connectedLayout
+                ? cardWidth >= 768
+                      ? 32.0
+                      : cardWidth >= 640
+                      ? 24.0
+                      : 16.0
+                : 12.0;
 
             return Container(
-              height: 84,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: <Widget>[
-                  // Rank Badge
-                  Container(
-                    width: badgeSize,
-                    height: badgeSize,
-                    margin: EdgeInsets.only(right: badgeMargin),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: badgeColor.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'RANK',
-                          style: textTheme.labelSmall?.copyWith(
-                            fontSize: rankLabelSize,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF94A3B8),
-                            height: 1.0,
-                          ),
-                        ),
-                        Text(
-                          rank.toString().padLeft(2, '0'),
-                          style: textTheme.titleMedium?.copyWith(
-                            fontSize: rankFontSize,
-                            fontWeight: FontWeight.w700,
-                            color: badgeColor,
-                            height: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Info (always visible)
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'NAME',
-                          style: textTheme.labelSmall?.copyWith(
-                            fontSize: nameLabelSize,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF94A3B8),
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        Text(
-                          player.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontSize: nameFontSize,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFE2E8F0),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Score Card — shown if width >= 200
-                  if (showElo)
-                    Container(
-                      margin: EdgeInsets.only(right: isNarrow ? 8 : 20),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+              height: rowHeight,
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: math.max(1.0, cardWidth - (horizontalPadding * 2)),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                        children: <Widget>[
+                          // Rank Badge
                           Container(
-                            constraints: const BoxConstraints(minWidth: 38),
-                            child: Text(
-                              '${player.elo}',
-                              textAlign: TextAlign.right,
-                              style: textTheme.titleLarge?.copyWith(
-                                fontSize: isNarrow ? 18 : 24,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                          ),
-                          if (!isNarrow) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              constraints: const BoxConstraints(minWidth: 40),
-                              child: _LeaderboardEloDeltaIndicator(
-                                playerId: player.id,
-                                delta: eloDelta ?? 0,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                  // Win % — shown if width >= 280
-                  if (showWinRate)
-                    SizedBox(
-                      width: 60,
-                      height: 60,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: CustomPaint(
-                              painter: ConicGradientProgress(
-                                percentage: winRate.toDouble(),
-                                color: themeColor,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 50,
-                            height: 50,
+                            width: badgeSize,
+                            height: badgeSize,
+                            margin: EdgeInsets.only(right: badgeMargin),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: innerCircleBg,
+                              border: Border.all(
+                                color: badgeColor.withValues(alpha: 0.5),
+                              ),
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$winRate%',
-                              style: textTheme.titleSmall?.copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFE2E8F0),
-                                height: 1.1,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'RANK',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    fontSize: rankLabelSize,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF94A3B8),
+                                    height: 1.0,
+                                  ),
+                                ),
+                                Text(
+                                  rank.toString().padLeft(2, '0'),
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontSize: rankFontSize,
+                                    fontWeight: FontWeight.w700,
+                                    color: badgeColor,
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Info (always visible)
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'NAME',
+                                    style: textTheme.labelSmall?.copyWith(
+                                      fontSize: nameLabelSize,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF94A3B8),
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                  Text(
+                                    player.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.titleMedium?.copyWith(
+                                      fontSize: nameFontSize,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFE2E8F0),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+
+                          // Score Card — shown if width >= 200
+                          if (showElo)
+                            Container(
+                              margin: EdgeInsets.only(right: isNarrow ? 8 : 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 38,
+                                    ),
+                                    child: Text(
+                                      '${player.elo}',
+                                      textAlign: TextAlign.right,
+                                      style: textTheme.titleLarge?.copyWith(
+                                        fontSize: isNarrow ? 18 : 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isNarrow) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 40,
+                                      ),
+                                      child: _LeaderboardEloDeltaIndicator(
+                                        playerId: player.id,
+                                        delta: eloDelta ?? 0,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                          // Win % — shown if width >= 280
+                          if (showWinRate)
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 60,
+                                    height: 60,
+                                    child: CustomPaint(
+                                      painter: ConicGradientProgress(
+                                        percentage: winRate.toDouble(),
+                                        color: themeColor,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: innerCircleBg,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '$winRate%',
+                                      style: textTheme.titleSmall?.copyWith(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFE2E8F0),
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
             );
           },
@@ -554,7 +736,7 @@ class _LeaderboardPlayerRowState extends State<_LeaderboardPlayerRow>
       explicitChildNodes: true,
       child: Container(
         key: highlightKey,
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: bottomMargin),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
@@ -730,4 +912,74 @@ String? _connectedTransportLabel(LocalSessionState state) {
     case LocalConnectionMedium.unknown:
       return null;
   }
+}
+
+const double _connectedFullBaseHeight = 84.0;
+const double _connectedHalfBaseHeight = 72.0;
+
+int _connectedFullWidthCountForAvailableHeight({
+  required int playerCount,
+  required double availableHeight,
+}) {
+  if (playerCount <= 0) {
+    return 0;
+  }
+  final minFullWidthCount = math.min(3, playerCount);
+  var bestCount = minFullWidthCount;
+
+  for (
+    var candidate = playerCount;
+    candidate >= minFullWidthCount;
+    candidate -= 1
+  ) {
+    final estimatedHeight = _connectedBaseEstimatedHeight(
+      playerCount: playerCount,
+      fullWidthCount: candidate,
+    );
+    if (estimatedHeight <= availableHeight + 15 ||
+        candidate == minFullWidthCount) {
+      bestCount = candidate;
+      break;
+    }
+  }
+
+  return bestCount;
+}
+
+double _connectedScaleForAvailableHeight({
+  required int playerCount,
+  required int fullWidthCount,
+  required double availableHeight,
+}) {
+  if (playerCount <= 0 || availableHeight <= 0) {
+    return 1;
+  }
+  final baseHeight = _connectedBaseEstimatedHeight(
+    playerCount: playerCount,
+    fullWidthCount: fullWidthCount,
+  );
+  if (baseHeight <= 0) {
+    return 1;
+  }
+  return availableHeight / baseHeight;
+}
+
+double _connectedBaseEstimatedHeight({
+  required int playerCount,
+  required int fullWidthCount,
+}) {
+  final halfRowCount = _connectedHalfRowCount(
+    playerCount: playerCount,
+    fullWidthCount: fullWidthCount,
+  );
+  return (fullWidthCount * _connectedFullBaseHeight) +
+      (halfRowCount * _connectedHalfBaseHeight);
+}
+
+int _connectedHalfRowCount({
+  required int playerCount,
+  required int fullWidthCount,
+}) {
+  final halfWidthPlayers = math.max(0, playerCount - fullWidthCount);
+  return (halfWidthPlayers / 2).ceil();
 }

@@ -32,6 +32,9 @@ void main() {
       repository.emitSync(const SyncState(lastSyncedEpochMillis: 1));
       repository.emitKFactor(32);
       repository.emitThemePreference(AppThemePreference.light);
+      repository.emitRemoteSyncEnabled(true);
+      repository.emitUseClientAudio(false);
+      repository.emitManualFullscreenEnabled(false);
       await flushState();
     });
 
@@ -95,6 +98,79 @@ void main() {
       expect(controller.state.screen, Screen.playerList);
     });
 
+    test(
+      'connect and disconnect apply source/screen/modal transitions',
+      () async {
+        controller.openSettingsModal();
+        expect(controller.state.isSettingsOpen, isTrue);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.client,
+            phase: LocalSessionPhase.connected,
+          ),
+        );
+        await flushState();
+
+        expect(controller.state.screen, Screen.leaderboard);
+        expect(controller.state.leaderboardSource, LeaderboardSource.local);
+        expect(controller.state.isSettingsOpen, isFalse);
+
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.client,
+            phase: LocalSessionPhase.disconnected,
+          ),
+        );
+        await flushState();
+
+        expect(controller.state.screen, Screen.landing);
+        expect(controller.state.leaderboardSource, LeaderboardSource.db);
+        expect(controller.state.isSettingsOpen, isFalse);
+      },
+    );
+
+    test('sync and client-audio toggles propagate to repository', () async {
+      controller.toggleRemoteSync(false);
+      controller.toggleClientAudio(true);
+      await flushState();
+
+      expect(repository.setRemoteSyncEnabledCalls, 1);
+      expect(repository.lastRemoteSyncEnabled, isFalse);
+      expect(repository.setUseClientAudioCalls, 1);
+      expect(repository.lastUseClientAudioEnabled, isTrue);
+    });
+
+    test(
+      'sends start-match beep control only when host is connected and enabled',
+      () async {
+        final started = controller.generateMatches(
+          const <String>{'a', 'b'},
+          PairingStrategy.random,
+          targetMatchesPerPlayer: 1,
+        );
+        expect(started, isTrue);
+        final match = controller.state.roundMatches.single;
+
+        controller.startMatch(match.id);
+        await flushState();
+        expect(platform.sendStartMatchBeepControlCalls, 0);
+
+        repository.emitUseClientAudio(true);
+        platform.emitLocalSession(
+          const LocalSessionState(
+            role: LocalSessionRole.host,
+            phase: LocalSessionPhase.connected,
+          ),
+        );
+        await flushState();
+
+        controller.startMatch(match.id);
+        await flushState();
+        expect(platform.sendStartMatchBeepControlCalls, 1);
+      },
+    );
+
     test('surfaces platform errors in local session state', () async {
       platform.emitError('nearby_failed');
       await flushState();
@@ -104,7 +180,7 @@ void main() {
     });
 
     test(
-      'keeps snapshot while disconnected and falls back to db in db mode',
+      'disconnect falls back to db source and local snapshot is no longer active',
       () async {
         final remotePlayers = <Player>[
           player('x', name: 'Remote X', elo: 1800),
@@ -139,7 +215,9 @@ void main() {
           ),
         );
         await flushState();
-        expect(controller.state.players, remotePlayers);
+        expect(controller.state.leaderboardSource, LeaderboardSource.db);
+        expect(controller.state.players.first.id, 'a');
+        expect(controller.state.screen, Screen.landing);
 
         controller.useDatabaseLeaderboard();
         await flushState();
@@ -266,13 +344,26 @@ void main() {
       expect(platform.immersiveShowStatusBarCalls, <bool>[true, false, true]);
     });
 
+    test('manual fullscreen toggle updates immersive mode', () async {
+      expect(platform.immersiveShowStatusBarCalls, <bool>[true]);
+
+      controller.toggleFullscreen(true);
+      await flushState();
+      expect(platform.immersiveShowStatusBarCalls.last, isFalse);
+
+      controller.toggleFullscreen(false);
+      await flushState();
+      expect(platform.immersiveShowStatusBarCalls.last, isTrue);
+    });
+
     test(
       'generates standard session queue where everyone reaches target',
       () async {
-        final started = controller.generateMatches(
-          const <String>{'a', 'b', 'c'},
-          PairingStrategy.random,
-        );
+        final started = controller.generateMatches(const <String>{
+          'a',
+          'b',
+          'c',
+        }, PairingStrategy.random);
 
         expect(started, isTrue);
         expect(controller.state.isStandardSession, isTrue);
@@ -429,6 +520,12 @@ class FakeSprintRepository implements SprintRepository {
       StreamController<int>.broadcast();
   final StreamController<AppThemePreference> _themePreferenceController =
       StreamController<AppThemePreference>.broadcast();
+  final StreamController<bool> _remoteSyncEnabledController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _useClientAudioController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _manualFullscreenEnabledController =
+      StreamController<bool>.broadcast();
 
   final List<List<RoundResultInput>> submittedResults =
       <List<RoundResultInput>>[];
@@ -436,12 +533,21 @@ class FakeSprintRepository implements SprintRepository {
   int deleteMatchCalls = 0;
   int setKFactorCalls = 0;
   int setThemePreferenceCalls = 0;
+  int setRemoteSyncEnabledCalls = 0;
+  int setUseClientAudioCalls = 0;
+  int setManualFullscreenEnabledCalls = 0;
+  int resetLocalDataCalls = 0;
+  int resetCloudDataCalls = 0;
+  int seedCloudDataCalls = 0;
 
   Object? submitRoundResultsError;
   Object? deleteMatchError;
   Object? setKFactorError;
   Object? setThemePreferenceError;
   AppThemePreference? lastSetThemePreference;
+  bool? lastRemoteSyncEnabled;
+  bool? lastUseClientAudioEnabled;
+  bool? lastManualFullscreenEnabled;
 
   @override
   Stream<List<Player>> get players => _playersController.stream;
@@ -459,6 +565,16 @@ class FakeSprintRepository implements SprintRepository {
   Stream<AppThemePreference> get themePreference =>
       _themePreferenceController.stream;
 
+  @override
+  Stream<bool> get remoteSyncEnabled => _remoteSyncEnabledController.stream;
+
+  @override
+  Stream<bool> get useClientAudio => _useClientAudioController.stream;
+
+  @override
+  Stream<bool> get manualFullscreenEnabled =>
+      _manualFullscreenEnabledController.stream;
+
   void emitPlayers(List<Player> value) => _playersController.add(value);
 
   void emitHistory(List<MatchHistoryEntry> value) =>
@@ -470,6 +586,14 @@ class FakeSprintRepository implements SprintRepository {
 
   void emitThemePreference(AppThemePreference value) =>
       _themePreferenceController.add(value);
+
+  void emitRemoteSyncEnabled(bool value) =>
+      _remoteSyncEnabledController.add(value);
+
+  void emitUseClientAudio(bool value) => _useClientAudioController.add(value);
+
+  void emitManualFullscreenEnabled(bool value) =>
+      _manualFullscreenEnabledController.add(value);
 
   @override
   Future<void> submitRoundResults(List<RoundResultInput> results) async {
@@ -492,6 +616,21 @@ class FakeSprintRepository implements SprintRepository {
   Future<void> resetAllData() async {}
 
   @override
+  Future<void> resetLocalData() async {
+    resetLocalDataCalls += 1;
+  }
+
+  @override
+  Future<void> resetCloudData() async {
+    resetCloudDataCalls += 1;
+  }
+
+  @override
+  Future<void> seedCloudData() async {
+    seedCloudDataCalls += 1;
+  }
+
+  @override
   Future<void> setKFactor(int kFactor) async {
     setKFactorCalls += 1;
     if (setKFactorError != null) {
@@ -509,12 +648,36 @@ class FakeSprintRepository implements SprintRepository {
   }
 
   @override
+  Future<void> setRemoteSyncEnabled(bool enabled) async {
+    setRemoteSyncEnabledCalls += 1;
+    lastRemoteSyncEnabled = enabled;
+    _remoteSyncEnabledController.add(enabled);
+  }
+
+  @override
+  Future<void> setUseClientAudio(bool enabled) async {
+    setUseClientAudioCalls += 1;
+    lastUseClientAudioEnabled = enabled;
+    _useClientAudioController.add(enabled);
+  }
+
+  @override
+  Future<void> setManualFullscreenEnabled(bool enabled) async {
+    setManualFullscreenEnabledCalls += 1;
+    lastManualFullscreenEnabled = enabled;
+    _manualFullscreenEnabledController.add(enabled);
+  }
+
+  @override
   void dispose() {
     _playersController.close();
     _historyController.close();
     _syncController.close();
     _kFactorController.close();
     _themePreferenceController.close();
+    _remoteSyncEnabledController.close();
+    _useClientAudioController.close();
+    _manualFullscreenEnabledController.close();
   }
 }
 
@@ -523,12 +686,15 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
       StreamController<LocalSessionState>.broadcast();
   final StreamController<LocalLeaderboardSnapshot> _localSnapshotController =
       StreamController<LocalLeaderboardSnapshot>.broadcast();
+  final StreamController<LocalControlEvent> _localControlEventController =
+      StreamController<LocalControlEvent>.broadcast();
   final StreamController<String> _errorsController =
       StreamController<String>.broadcast();
 
   int useDbForLocalCalls = 0;
   int startLocalHostingCalls = 0;
   int scanLocalHostsCalls = 0;
+  int sendStartMatchBeepControlCalls = 0;
   final List<bool> immersiveShowStatusBarCalls = <bool>[];
   Object? startLocalHostingError;
   Object? scanLocalHostsError;
@@ -543,6 +709,10 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
       _localSnapshotController.stream;
 
   @override
+  Stream<LocalControlEvent> get localControlEvents =>
+      _localControlEventController.stream;
+
+  @override
   Stream<String> get errors => _errorsController.stream;
 
   void emitLocalSession(LocalSessionState state) =>
@@ -552,6 +722,9 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
       _localSnapshotController.add(snapshot);
 
   void emitError(String message) => _errorsController.add(message);
+
+  void emitControl(LocalControlEvent event) =>
+      _localControlEventController.add(event);
 
   @override
   Future<void> startLocalHosting(String localEndpointName) async {
@@ -598,6 +771,11 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   ) async {}
 
   @override
+  Future<void> sendStartMatchBeepControl() async {
+    sendStartMatchBeepControlCalls += 1;
+  }
+
+  @override
   Future<void> setImmersiveMode({bool showStatusBar = true}) async {
     immersiveShowStatusBarCalls.add(showStatusBar);
   }
@@ -606,6 +784,7 @@ class FakeSprintPlatform implements SprintPlatformAdapter {
   void dispose() {
     _localSessionController.close();
     _localSnapshotController.close();
+    _localControlEventController.close();
     _errorsController.close();
   }
 }

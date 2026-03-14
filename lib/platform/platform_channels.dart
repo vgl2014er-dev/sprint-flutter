@@ -10,6 +10,8 @@ abstract class SprintPlatformAdapter {
 
   Stream<LocalLeaderboardSnapshot> get localSnapshot;
 
+  Stream<LocalControlEvent> get localControlEvents;
+
   Stream<String> get errors;
 
   Future<void> startLocalHosting(String localEndpointName);
@@ -30,6 +32,8 @@ abstract class SprintPlatformAdapter {
 
   Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot);
 
+  Future<void> sendStartMatchBeepControl();
+
   Future<void> setImmersiveMode({bool showStatusBar = true});
 
   void dispose();
@@ -48,6 +52,8 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       StreamController<LocalSessionState>.broadcast();
   final StreamController<LocalLeaderboardSnapshot> _localSnapshotController =
       StreamController<LocalLeaderboardSnapshot>.broadcast();
+  final StreamController<LocalControlEvent> _localControlEventsController =
+      StreamController<LocalControlEvent>.broadcast();
   final StreamController<String> _errorsController =
       StreamController<String>.broadcast();
 
@@ -60,52 +66,68 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       _localSnapshotController.stream;
 
   @override
+  Stream<LocalControlEvent> get localControlEvents =>
+      _localControlEventsController.stream;
+
+  @override
   Stream<String> get errors => _errorsController.stream;
 
   @override
-  Future<void> startLocalHosting(String localEndpointName) => _methodChannel.invokeMethod<void>(
-      'nearbyStartHost',
-      <String, Object?>{'localEndpointName': localEndpointName},
-    );
+  Future<void> startLocalHosting(String localEndpointName) =>
+      _methodChannel.invokeMethod<void>('nearbyStartHost', <String, Object?>{
+        'localEndpointName': localEndpointName,
+      });
 
   @override
-  Future<void> stopLocalHosting() => _methodChannel.invokeMethod<void>('nearbyStopHost');
+  Future<void> stopLocalHosting() =>
+      _methodChannel.invokeMethod<void>('nearbyStopHost');
 
   @override
-  Future<void> scanLocalHosts(String localEndpointName) => _methodChannel.invokeMethod<void>(
-      'nearbyScanHosts',
-      <String, Object?>{'localEndpointName': localEndpointName},
-    );
+  Future<void> scanLocalHosts(String localEndpointName) =>
+      _methodChannel.invokeMethod<void>('nearbyScanHosts', <String, Object?>{
+        'localEndpointName': localEndpointName,
+      });
 
   @override
-  Future<void> connectToLocalHost(String endpointId) => _methodChannel.invokeMethod<void>(
-      'nearbyConnectHost',
-      <String, Object?>{'endpointId': endpointId},
-    );
+  Future<void> connectToLocalHost(String endpointId) =>
+      _methodChannel.invokeMethod<void>('nearbyConnectHost', <String, Object?>{
+        'endpointId': endpointId,
+      });
 
   @override
-  Future<void> acceptLocalConnection() => _methodChannel.invokeMethod<void>('nearbyAcceptConnection');
+  Future<void> acceptLocalConnection() =>
+      _methodChannel.invokeMethod<void>('nearbyAcceptConnection');
 
   @override
-  Future<void> rejectLocalConnection() => _methodChannel.invokeMethod<void>('nearbyRejectConnection');
+  Future<void> rejectLocalConnection() =>
+      _methodChannel.invokeMethod<void>('nearbyRejectConnection');
 
   @override
-  Future<void> disconnectLocalConnection() => _methodChannel.invokeMethod<void>('nearbyDisconnect');
+  Future<void> disconnectLocalConnection() =>
+      _methodChannel.invokeMethod<void>('nearbyDisconnect');
 
   @override
-  Future<void> useDatabaseModeForLocal() => _methodChannel.invokeMethod<void>('nearbyUseDb');
+  Future<void> useDatabaseModeForLocal() =>
+      _methodChannel.invokeMethod<void>('nearbyUseDb');
 
   @override
-  Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot) => _methodChannel.invokeMethod<void>(
-      'publishLocalSnapshot',
-      <String, Object?>{'snapshot': snapshot.toJson()},
-    );
+  Future<void> publishLocalHostedSnapshot(LocalLeaderboardSnapshot snapshot) =>
+      _methodChannel.invokeMethod<void>(
+        'publishLocalSnapshot',
+        <String, Object?>{'snapshot': snapshot.toJson()},
+      );
 
   @override
-  Future<void> setImmersiveMode({bool showStatusBar = true}) => _methodChannel.invokeMethod<void>(
-      'setImmersiveMode',
-      <String, Object?>{'showStatusBar': showStatusBar},
-    );
+  Future<void> sendStartMatchBeepControl() => _methodChannel.invokeMethod<void>(
+    'sendLocalControl',
+    const <String, Object?>{'action': 'start_match_beep'},
+  );
+
+  @override
+  Future<void> setImmersiveMode({bool showStatusBar = true}) =>
+      _methodChannel.invokeMethod<void>('setImmersiveMode', <String, Object?>{
+        'showStatusBar': showStatusBar,
+      });
 
   Future<void> _onMethodCall(MethodCall call) async {
     if (call.method != 'onPlatformEvent') {
@@ -129,6 +151,13 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
       case 'local_snapshot':
         _localSnapshotController.add(LocalLeaderboardSnapshot.fromJson(data));
         break;
+      case 'local_control_event':
+        final action = data['action']?.toString();
+        final event = LocalControlEvent.fromWire(action);
+        if (event != null) {
+          _localControlEventsController.add(event);
+        }
+        break;
       case 'error':
         final message = data['message']?.toString() ?? 'platform_error';
         _errorsController.add(message);
@@ -147,6 +176,7 @@ class SprintPlatformChannels implements SprintPlatformAdapter {
     _methodChannel.setMethodCallHandler(null);
     _localSessionStateController.close();
     _localSnapshotController.close();
+    _localControlEventsController.close();
     _errorsController.close();
   }
 }

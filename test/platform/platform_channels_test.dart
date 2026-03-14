@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sprint/models/app_models.dart';
 import 'package:sprint/platform/platform_channels.dart';
 
 void main() {
@@ -33,6 +34,7 @@ void main() {
       await adapter.startLocalHosting('Sprint Display');
       await adapter.scanLocalHosts('Sprint Display');
       await adapter.connectToLocalHost('endpoint-1');
+      await adapter.sendStartMatchBeepControl();
       await adapter.setImmersiveMode(showStatusBar: false);
 
       expect(outgoingCalls[0].method, 'nearbyStartHost');
@@ -41,8 +43,12 @@ void main() {
       });
       expect(outgoingCalls[1].method, 'nearbyScanHosts');
       expect(outgoingCalls[2].method, 'nearbyConnectHost');
-      expect(outgoingCalls[3].method, 'setImmersiveMode');
+      expect(outgoingCalls[3].method, 'sendLocalControl');
       expect(outgoingCalls[3].arguments, <String, Object?>{
+        'action': 'start_match_beep',
+      });
+      expect(outgoingCalls[4].method, 'setImmersiveMode');
+      expect(outgoingCalls[4].arguments, <String, Object?>{
         'showStatusBar': false,
       });
     });
@@ -95,6 +101,28 @@ void main() {
       await completer.future.timeout(const Duration(seconds: 2));
       await subscription.cancel();
       expect(errors, <String>['nearby_failed']);
+    });
+
+    test('publishes local control events', () async {
+      final events = <LocalControlEvent>[];
+      final completer = Completer<void>();
+      final subscription = adapter.localControlEvents.listen((event) {
+        events.add(event);
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      await adapter.handleMethodCallForTest(
+        const MethodCall('onPlatformEvent', <String, Object?>{
+          'type': 'local_control_event',
+          'data': <String, Object?>{'action': 'start_match_beep'},
+        }),
+      );
+
+      await completer.future.timeout(const Duration(seconds: 2));
+      await subscription.cancel();
+      expect(events, <LocalControlEvent>[LocalControlEvent.startMatchBeep]);
     });
   });
 }

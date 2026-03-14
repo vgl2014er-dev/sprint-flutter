@@ -25,20 +25,18 @@ class SprintRepositoryImpl implements SprintRepository {
   }) : _database = database,
        _firebaseDatabase = enableRemoteSync
            ? (firebaseDatabase ?? FirebaseDatabase.instance)
-           : null,
+           : firebaseDatabase,
        _loadSharedPreferences = sharedPreferencesLoader,
-       _enableRemoteSync = enableRemoteSync {
-    if (_enableRemoteSync) {
-      final firebase = _firebaseDatabase!;
-      _playersRef = firebase.ref(Defaults.dbPlayersPath);
-      _historyRef = firebase.ref(Defaults.dbHistoryPath);
-      _tournamentRef = firebase.ref(Defaults.dbTournamentPath);
-      _settingsRef = firebase.ref(Defaults.dbSettingsPath);
-    }
+       _remoteSyncEnabled = enableRemoteSync {
+    _remoteSyncEnabledValue = enableRemoteSync;
+    _ensureFirebaseRefs();
 
     _syncStateController.add(_syncStateValue);
     _kFactorController.add(_kFactorValue);
     _themePreferenceController.add(_themePreferenceValue);
+    _remoteSyncEnabledController.add(_remoteSyncEnabledValue);
+    _useClientAudioController.add(_useClientAudioValue);
+    _manualFullscreenEnabledController.add(_manualFullscreenEnabledValue);
     unawaited(
       _initialize().catchError((Object error, StackTrace stackTrace) {
         AppLogger.error(
@@ -52,9 +50,9 @@ class SprintRepositoryImpl implements SprintRepository {
   }
 
   final db.AppDatabase _database;
-  final FirebaseDatabase? _firebaseDatabase;
+  FirebaseDatabase? _firebaseDatabase;
   final SharedPreferencesLoader _loadSharedPreferences;
-  final bool _enableRemoteSync;
+  bool _remoteSyncEnabled;
 
   DatabaseReference? _playersRef;
   DatabaseReference? _historyRef;
@@ -67,11 +65,20 @@ class SprintRepositoryImpl implements SprintRepository {
       StreamController<int>.broadcast();
   final StreamController<models.AppThemePreference> _themePreferenceController =
       StreamController<models.AppThemePreference>.broadcast();
+  final StreamController<bool> _remoteSyncEnabledController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _useClientAudioController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _manualFullscreenEnabledController =
+      StreamController<bool>.broadcast();
 
   models.SyncState _syncStateValue = const models.SyncState();
   int _kFactorValue = Defaults.eloK;
   models.AppThemePreference _themePreferenceValue =
       models.AppThemePreference.light;
+  bool _remoteSyncEnabledValue = true;
+  bool _useClientAudioValue = false;
+  bool _manualFullscreenEnabledValue = false;
 
   StreamSubscription<DatabaseEvent>? _playersSubscription;
   StreamSubscription<DatabaseEvent>? _historySubscription;
@@ -81,13 +88,13 @@ class SprintRepositoryImpl implements SprintRepository {
 
   @override
   Stream<List<models.Player>> get players => _database.watchPlayers().map(
-      (rows) => rows.map(_playerFromRow).toList(growable: false),
-    );
+    (rows) => rows.map(_playerFromRow).toList(growable: false),
+  );
 
   @override
-  Stream<List<models.MatchHistoryEntry>> get history => _database.watchHistory().map(
-      (rows) => rows.map(_historyFromRow).toList(growable: false),
-    );
+  Stream<List<models.MatchHistoryEntry>> get history => _database
+      .watchHistory()
+      .map((rows) => rows.map(_historyFromRow).toList(growable: false));
 
   @override
   Stream<models.SyncState> get syncState => _syncStateController.stream;
@@ -101,11 +108,32 @@ class SprintRepositoryImpl implements SprintRepository {
     yield* _themePreferenceController.stream;
   }
 
+  @override
+  Stream<bool> get remoteSyncEnabled async* {
+    yield _remoteSyncEnabledValue;
+    yield* _remoteSyncEnabledController.stream;
+  }
+
+  @override
+  Stream<bool> get useClientAudio async* {
+    yield _useClientAudioValue;
+    yield* _useClientAudioController.stream;
+  }
+
+  @override
+  Stream<bool> get manualFullscreenEnabled async* {
+    yield _manualFullscreenEnabledValue;
+    yield* _manualFullscreenEnabledController.stream;
+  }
+
   Future<void> _initialize() async {
     await _seedPlayersIfEmpty();
     await _loadInitialKFactor();
     await _loadInitialThemePreference();
-    if (!_enableRemoteSync) {
+    await _loadInitialRemoteSyncEnabled();
+    await _loadInitialUseClientAudio();
+    await _loadInitialManualFullscreenEnabled();
+    if (!_remoteSyncEnabled) {
       return;
     }
     await _clearLegacyTournamentOnce();
@@ -191,9 +219,7 @@ class SprintRepositoryImpl implements SprintRepository {
       }
 
       updatedPlayers = playersById.values.toList(growable: false);
-      updatedHistory = HistoryPolicy.cap(
-        existingHistory,
-      );
+      updatedHistory = HistoryPolicy.cap(existingHistory);
 
       await _database.clearPlayers();
       await _database.upsertPlayers(
@@ -249,8 +275,12 @@ class SprintRepositoryImpl implements SprintRepository {
 
   @override
   Future<void> resetAllData() async {
+    await resetLocalData();
+  }
+
+  @override
+  Future<void> resetLocalData() async {
     final players = Defaults.initialPlayers();
-    const history = <models.MatchHistoryEntry>[];
 
     await _database.transactionRun(() async {
       await _database.clearPlayers();
@@ -259,8 +289,41 @@ class SprintRepositoryImpl implements SprintRepository {
       );
       await _database.clearHistory();
     });
+  }
 
+  @override
+  Future<void> resetCloudData() async {
+    final playersRef = _playersRef;
+    final historyRef = _historyRef;
+    final settingsRef = _settingsRef;
+    if (!_remoteSyncEnabled || playersRef == null || historyRef == null) {
+      return;
+    }
+
+    await playersRef.set(
+      Defaults.initialPlayers()
+          .map((player) => player.toJson())
+          .toList(growable: false),
+    );
+    await historyRef.set(<Object?>[]);
+    if (settingsRef != null) {
+      await settingsRef.set(<String, Object>{'kFactor': _kFactorValue});
+    }
+  }
+
+  @override
+  Future<void> seedCloudData() async {
+    if (!_remoteSyncEnabled) {
+      return;
+    }
+    final players = (await _database.getPlayers())
+        .map(_playerFromRow)
+        .toList(growable: false);
+    final history = (await _database.getHistory())
+        .map(_historyFromRow)
+        .toList(growable: false);
     await _pushToFirebase(players, history);
+    await _pushKFactorToFirebase(_kFactorValue);
   }
 
   @override
@@ -278,6 +341,46 @@ class SprintRepositoryImpl implements SprintRepository {
     await _persistThemePreference(preference);
   }
 
+  @override
+  Future<void> setRemoteSyncEnabled(bool enabled) async {
+    if (_remoteSyncEnabled == enabled && _remoteSyncEnabledValue == enabled) {
+      return;
+    }
+    _remoteSyncEnabled = enabled;
+    _remoteSyncEnabledValue = enabled;
+    _remoteSyncEnabledController.add(enabled);
+    await _persistRemoteSyncEnabled(enabled);
+    if (enabled) {
+      _firebaseDatabase ??= FirebaseDatabase.instance;
+      _ensureFirebaseRefs();
+      await _clearLegacyTournamentOnce();
+      _attachFirebaseListeners();
+      return;
+    }
+    _detachFirebaseListeners();
+    _setSyncState(_syncStateValue.copyWith(isSyncing: false));
+  }
+
+  @override
+  Future<void> setUseClientAudio(bool enabled) async {
+    if (_useClientAudioValue == enabled) {
+      return;
+    }
+    _useClientAudioValue = enabled;
+    _useClientAudioController.add(enabled);
+    await _persistUseClientAudio(enabled);
+  }
+
+  @override
+  Future<void> setManualFullscreenEnabled(bool enabled) async {
+    if (_manualFullscreenEnabledValue == enabled) {
+      return;
+    }
+    _manualFullscreenEnabledValue = enabled;
+    _manualFullscreenEnabledController.add(enabled);
+    await _persistManualFullscreenEnabled(enabled);
+  }
+
   Future<void> _seedPlayersIfEmpty() async {
     final existingPlayers = await _database.getPlayers();
     if (existingPlayers.isNotEmpty) {
@@ -292,7 +395,7 @@ class SprintRepositoryImpl implements SprintRepository {
 
   Future<void> _clearLegacyTournamentOnce() async {
     final tournamentRef = _tournamentRef;
-    if (!_enableRemoteSync || tournamentRef == null) {
+    if (!_remoteSyncEnabled || tournamentRef == null) {
       return;
     }
 
@@ -314,13 +417,30 @@ class SprintRepositoryImpl implements SprintRepository {
     }
   }
 
+  void _ensureFirebaseRefs() {
+    final firebase = _firebaseDatabase;
+    if (firebase == null) {
+      return;
+    }
+    _playersRef ??= firebase.ref(Defaults.dbPlayersPath);
+    _historyRef ??= firebase.ref(Defaults.dbHistoryPath);
+    _tournamentRef ??= firebase.ref(Defaults.dbTournamentPath);
+    _settingsRef ??= firebase.ref(Defaults.dbSettingsPath);
+  }
+
   void _attachFirebaseListeners() {
+    if (!_remoteSyncEnabled) {
+      return;
+    }
+    _ensureFirebaseRefs();
     final playersRef = _playersRef;
     final historyRef = _historyRef;
     final settingsRef = _settingsRef;
     if (playersRef == null || historyRef == null || settingsRef == null) {
       return;
     }
+
+    _detachFirebaseListeners();
 
     _playersSubscription = playersRef.onValue.listen(
       (event) async {
@@ -402,11 +522,20 @@ class SprintRepositoryImpl implements SprintRepository {
     );
   }
 
+  void _detachFirebaseListeners() {
+    _playersSubscription?.cancel();
+    _playersSubscription = null;
+    _historySubscription?.cancel();
+    _historySubscription = null;
+    _settingsSubscription?.cancel();
+    _settingsSubscription = null;
+  }
+
   Future<void> _pushToFirebase(
     List<models.Player> players,
     List<models.MatchHistoryEntry> history,
   ) async {
-    if (!_enableRemoteSync || _playersRef == null || _historyRef == null) {
+    if (!_remoteSyncEnabled || _playersRef == null || _historyRef == null) {
       _setSyncState(
         models.SyncState(
           lastSyncedEpochMillis: DateTime.now().millisecondsSinceEpoch,
@@ -476,7 +605,7 @@ class SprintRepositoryImpl implements SprintRepository {
 
   Future<void> _pushKFactorToFirebase(int kFactor) async {
     final settingsRef = _settingsRef;
-    if (!_enableRemoteSync || settingsRef == null) {
+    if (!_remoteSyncEnabled || settingsRef == null) {
       return;
     }
 
@@ -519,6 +648,125 @@ class SprintRepositoryImpl implements SprintRepository {
     );
     await prefs.setString(_keyThemeMode, _themePreferenceValue.toWire());
     _themePreferenceController.add(_themePreferenceValue);
+  }
+
+  Future<void> _persistRemoteSyncEnabled(bool enabled) async {
+    final prefs = await _loadSharedPreferences();
+    await prefs.setBool(_keyRemoteSyncEnabled, enabled);
+    await _database.setSetting(_settingRemoteSyncEnabled, enabled.toString());
+  }
+
+  Future<void> _loadInitialRemoteSyncEnabled() async {
+    final databaseValue = await _database.getSetting(_settingRemoteSyncEnabled);
+    if (databaseValue != null) {
+      final parsed = _parseBool(databaseValue);
+      if (parsed != null) {
+        _remoteSyncEnabled = parsed;
+        _remoteSyncEnabledValue = parsed;
+        _remoteSyncEnabledController.add(parsed);
+        return;
+      }
+    }
+
+    final prefs = await _loadSharedPreferences();
+    final persisted = prefs.getBool(_keyRemoteSyncEnabled);
+    if (persisted != null) {
+      _remoteSyncEnabled = persisted;
+      _remoteSyncEnabledValue = persisted;
+      await _database.setSetting(
+        _settingRemoteSyncEnabled,
+        persisted.toString(),
+      );
+      _remoteSyncEnabledController.add(persisted);
+      return;
+    }
+
+    _remoteSyncEnabled = _remoteSyncEnabledValue;
+    await _database.setSetting(
+      _settingRemoteSyncEnabled,
+      _remoteSyncEnabledValue.toString(),
+    );
+    await prefs.setBool(_keyRemoteSyncEnabled, _remoteSyncEnabledValue);
+    _remoteSyncEnabledController.add(_remoteSyncEnabledValue);
+  }
+
+  Future<void> _persistUseClientAudio(bool enabled) async {
+    final prefs = await _loadSharedPreferences();
+    await prefs.setBool(_keyUseClientAudio, enabled);
+    await _database.setSetting(_settingUseClientAudio, enabled.toString());
+  }
+
+  Future<void> _loadInitialUseClientAudio() async {
+    final databaseValue = await _database.getSetting(_settingUseClientAudio);
+    if (databaseValue != null) {
+      final parsed = _parseBool(databaseValue);
+      if (parsed != null) {
+        _useClientAudioValue = parsed;
+        _useClientAudioController.add(parsed);
+        return;
+      }
+    }
+
+    final prefs = await _loadSharedPreferences();
+    final persisted = prefs.getBool(_keyUseClientAudio);
+    if (persisted != null) {
+      _useClientAudioValue = persisted;
+      await _database.setSetting(_settingUseClientAudio, persisted.toString());
+      _useClientAudioController.add(persisted);
+      return;
+    }
+
+    await _database.setSetting(
+      _settingUseClientAudio,
+      _useClientAudioValue.toString(),
+    );
+    await prefs.setBool(_keyUseClientAudio, _useClientAudioValue);
+    _useClientAudioController.add(_useClientAudioValue);
+  }
+
+  Future<void> _persistManualFullscreenEnabled(bool enabled) async {
+    final prefs = await _loadSharedPreferences();
+    await prefs.setBool(_keyManualFullscreenEnabled, enabled);
+    await _database.setSetting(
+      _settingManualFullscreenEnabled,
+      enabled.toString(),
+    );
+  }
+
+  Future<void> _loadInitialManualFullscreenEnabled() async {
+    final databaseValue = await _database.getSetting(
+      _settingManualFullscreenEnabled,
+    );
+    if (databaseValue != null) {
+      final parsed = _parseBool(databaseValue);
+      if (parsed != null) {
+        _manualFullscreenEnabledValue = parsed;
+        _manualFullscreenEnabledController.add(parsed);
+        return;
+      }
+    }
+
+    final prefs = await _loadSharedPreferences();
+    final persisted = prefs.getBool(_keyManualFullscreenEnabled);
+    if (persisted != null) {
+      _manualFullscreenEnabledValue = persisted;
+      await _database.setSetting(
+        _settingManualFullscreenEnabled,
+        persisted.toString(),
+      );
+      _manualFullscreenEnabledController.add(persisted);
+      return;
+    }
+
+    await _database.setSetting(
+      _settingManualFullscreenEnabled,
+      _manualFullscreenEnabledValue.toString(),
+    );
+    await prefs.setBool(
+      _keyManualFullscreenEnabled,
+      _manualFullscreenEnabledValue,
+    );
+    _manualFullscreenEnabledController.add(_manualFullscreenEnabledValue);
   }
 
   List<models.Player> _parsePlayers(DataSnapshot snapshot) {
@@ -564,6 +812,19 @@ class SprintRepositoryImpl implements SprintRepository {
     return history;
   }
 
+  bool? _parseBool(Object? rawValue) {
+    return switch (rawValue) {
+      final bool value => value,
+      final String value => switch (value.trim().toLowerCase()) {
+        'true' => true,
+        'false' => false,
+        _ => null,
+      },
+      final num value => value != 0,
+      _ => null,
+    };
+  }
+
   int? _parseKFactor(Object? rawValue) {
     final value = switch (rawValue) {
       final Map<dynamic, dynamic> map => map['kFactor'],
@@ -585,52 +846,56 @@ class SprintRepositoryImpl implements SprintRepository {
   }
 
   models.Player _playerFromRow(db.Player row) => models.Player(
-      id: row.id,
-      name: row.name,
-      elo: row.elo,
-      wins: row.wins,
-      losses: row.losses,
-      draws: row.draws,
-      matchesPlayed: row.matchesPlayed,
-    );
+    id: row.id,
+    name: row.name,
+    elo: row.elo,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    matchesPlayed: row.matchesPlayed,
+  );
 
-  db.PlayersCompanion _playerToCompanion(models.Player player) => db.PlayersCompanion(
-      id: Value<String>(player.id),
-      name: Value<String>(player.name),
-      elo: Value<int>(player.elo),
-      wins: Value<int>(player.wins),
-      losses: Value<int>(player.losses),
-      draws: Value<int>(player.draws),
-      matchesPlayed: Value<int>(player.matchesPlayed),
-    );
+  db.PlayersCompanion _playerToCompanion(models.Player player) =>
+      db.PlayersCompanion(
+        id: Value<String>(player.id),
+        name: Value<String>(player.name),
+        elo: Value<int>(player.elo),
+        wins: Value<int>(player.wins),
+        losses: Value<int>(player.losses),
+        draws: Value<int>(player.draws),
+        matchesPlayed: Value<int>(player.matchesPlayed),
+      );
 
-  models.MatchHistoryEntry _historyFromRow(db.MatchHistoryData row) => models.MatchHistoryEntry(
-      id: row.id,
-      p1Id: row.p1Id,
-      p2Id: row.p2Id,
-      p1Name: row.p1Name,
-      p2Name: row.p2Name,
-      p1EloBefore: row.p1EloBefore,
-      p2EloBefore: row.p2EloBefore,
-      p1EloAfter: row.p1EloAfter,
-      p2EloAfter: row.p2EloAfter,
-      result: models.MatchResult.fromWire(row.result),
-      timestamp: row.timestamp,
-    );
+  models.MatchHistoryEntry _historyFromRow(db.MatchHistoryData row) =>
+      models.MatchHistoryEntry(
+        id: row.id,
+        p1Id: row.p1Id,
+        p2Id: row.p2Id,
+        p1Name: row.p1Name,
+        p2Name: row.p2Name,
+        p1EloBefore: row.p1EloBefore,
+        p2EloBefore: row.p2EloBefore,
+        p1EloAfter: row.p1EloAfter,
+        p2EloAfter: row.p2EloAfter,
+        result: models.MatchResult.fromWire(row.result),
+        timestamp: row.timestamp,
+      );
 
-  db.MatchHistoryCompanion _historyToCompanion(models.MatchHistoryEntry entry) => db.MatchHistoryCompanion(
-      id: Value<String>(entry.id),
-      p1Id: Value<String>(entry.p1Id),
-      p2Id: Value<String>(entry.p2Id),
-      p1Name: Value<String>(entry.p1Name),
-      p2Name: Value<String>(entry.p2Name),
-      p1EloBefore: Value<int>(entry.p1EloBefore),
-      p2EloBefore: Value<int>(entry.p2EloBefore),
-      p1EloAfter: Value<int>(entry.p1EloAfter),
-      p2EloAfter: Value<int>(entry.p2EloAfter),
-      result: Value<String>(entry.result.toWire()),
-      timestamp: Value<int>(entry.timestamp),
-    );
+  db.MatchHistoryCompanion _historyToCompanion(
+    models.MatchHistoryEntry entry,
+  ) => db.MatchHistoryCompanion(
+    id: Value<String>(entry.id),
+    p1Id: Value<String>(entry.p1Id),
+    p2Id: Value<String>(entry.p2Id),
+    p1Name: Value<String>(entry.p1Name),
+    p2Name: Value<String>(entry.p2Name),
+    p1EloBefore: Value<int>(entry.p1EloBefore),
+    p2EloBefore: Value<int>(entry.p2EloBefore),
+    p1EloAfter: Value<int>(entry.p1EloAfter),
+    p2EloAfter: Value<int>(entry.p2EloAfter),
+    result: Value<String>(entry.result.toWire()),
+    timestamp: Value<int>(entry.timestamp),
+  );
 
   void _setSyncState(models.SyncState state) {
     _syncStateValue = state;
@@ -643,12 +908,13 @@ class SprintRepositoryImpl implements SprintRepository {
       return;
     }
     _isDisposed = true;
-    _playersSubscription?.cancel();
-    _historySubscription?.cancel();
-    _settingsSubscription?.cancel();
+    _detachFirebaseListeners();
     _syncStateController.close();
     _kFactorController.close();
     _themePreferenceController.close();
+    _remoteSyncEnabledController.close();
+    _useClientAudioController.close();
+    _manualFullscreenEnabledController.close();
     _database.close();
   }
 
@@ -656,6 +922,14 @@ class SprintRepositoryImpl implements SprintRepository {
       'legacy_tournament_cleared_v1';
   static const String _keyEloKFactor = 'elo_k_factor_v1';
   static const String _keyThemeMode = 'theme_mode_v1';
+  static const String _keyRemoteSyncEnabled = 'remote_sync_enabled_v1';
+  static const String _keyUseClientAudio = 'use_client_audio_v1';
+  static const String _keyManualFullscreenEnabled =
+      'manual_fullscreen_enabled_v1';
   static const String _settingKFactor = 'k_factor';
   static const String _settingThemeMode = 'theme_mode';
+  static const String _settingRemoteSyncEnabled = 'remote_sync_enabled';
+  static const String _settingUseClientAudio = 'use_client_audio';
+  static const String _settingManualFullscreenEnabled =
+      'manual_fullscreen_enabled';
 }

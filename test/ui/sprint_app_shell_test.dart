@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sprint/data/repository/sprint_repository.dart';
 import 'package:sprint/models/app_models.dart';
 import 'package:sprint/platform/platform_channels.dart';
@@ -10,12 +10,11 @@ import 'package:sprint/state/sprint_controller.dart';
 import 'package:sprint/ui/screens/sprint_app.dart';
 
 void main() {
-  testWidgets('header theme toggle renders and toggles app preference', (
-    WidgetTester tester,
-  ) async {
-    final repository = _FakeSprintRepository();
-    final platform = _FakePlatformAdapter();
-
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    required _FakeSprintRepository repository,
+    required _FakePlatformAdapter platform,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
@@ -26,48 +25,59 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+  }
 
-    await tester.tap(find.text('Players'));
+  testWidgets('footer settings opens modal', (WidgetTester tester) async {
+    final repository = _FakeSprintRepository();
+    final platform = _FakePlatformAdapter();
+    await pumpApp(tester, repository: repository, platform: platform);
+
+    await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.dark_mode_rounded));
-    await tester.pumpAndSettle();
-
-    expect(repository.setThemePreferenceCalls, 1);
-    expect(repository.lastSetThemePreference, AppThemePreference.dark);
-    expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
+    expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
   });
 
-  testWidgets('leaderboard header shows theme toggle and reset actions', (
+  testWidgets('floating settings button opens modal', (
     WidgetTester tester,
   ) async {
     final repository = _FakeSprintRepository();
     final platform = _FakePlatformAdapter();
+    await pumpApp(tester, repository: repository, platform: platform);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: <Override>[
-          sprintRepositoryProvider.overrideWithValue(repository),
-          platformChannelsProvider.overrideWithValue(platform),
-        ],
-        child: const SprintApp(),
-      ),
-    );
+    expect(find.byKey(const Key('settings-fab')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('settings-fab')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Leaderboard'));
+    expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
+  });
+
+  testWidgets('modal closes via close button, backdrop and back action', (
+    WidgetTester tester,
+  ) async {
+    final repository = _FakeSprintRepository();
+    final platform = _FakePlatformAdapter();
+    await pumpApp(tester, repository: repository, platform: platform);
+
+    await tester.tap(find.byKey(const Key('settings-fab')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-modal-close')), findsOneWidget);
 
-    expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.tap(find.byKey(const Key('settings-modal-close')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-modal-close')), findsNothing);
 
-    expect(find.text('Reset Leaderboard?'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Reset Data'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('settings-fab')));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(12, 12));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-modal-close')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('settings-fab')));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-modal-close')), findsNothing);
   });
 }
 
@@ -82,15 +92,21 @@ class _FakeSprintRepository implements SprintRepository {
       StreamController<int>.broadcast();
   final StreamController<AppThemePreference> _themeController =
       StreamController<AppThemePreference>.broadcast();
+  final StreamController<bool> _remoteSyncController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _useClientAudioController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _manualFullscreenController =
+      StreamController<bool>.broadcast();
 
   final List<Player> _players = const <Player>[];
   final List<MatchHistoryEntry> _history = const <MatchHistoryEntry>[];
   final SyncState _syncState = const SyncState();
   int _kFactor = 32;
   AppThemePreference _themePreference = AppThemePreference.light;
-
-  int setThemePreferenceCalls = 0;
-  AppThemePreference? lastSetThemePreference;
+  bool _remoteSyncEnabled = true;
+  bool _useClientAudio = false;
+  bool _manualFullscreenEnabled = false;
 
   @override
   Stream<List<Player>> get players async* {
@@ -123,6 +139,24 @@ class _FakeSprintRepository implements SprintRepository {
   }
 
   @override
+  Stream<bool> get remoteSyncEnabled async* {
+    yield _remoteSyncEnabled;
+    yield* _remoteSyncController.stream;
+  }
+
+  @override
+  Stream<bool> get useClientAudio async* {
+    yield _useClientAudio;
+    yield* _useClientAudioController.stream;
+  }
+
+  @override
+  Stream<bool> get manualFullscreenEnabled async* {
+    yield _manualFullscreenEnabled;
+    yield* _manualFullscreenController.stream;
+  }
+
+  @override
   Future<void> submitRoundResults(List<RoundResultInput> results) async {}
 
   @override
@@ -132,6 +166,15 @@ class _FakeSprintRepository implements SprintRepository {
   Future<void> resetAllData() async {}
 
   @override
+  Future<void> resetLocalData() async {}
+
+  @override
+  Future<void> resetCloudData() async {}
+
+  @override
+  Future<void> seedCloudData() async {}
+
+  @override
   Future<void> setKFactor(int kFactor) async {
     _kFactor = kFactor;
     _kFactorController.add(kFactor);
@@ -139,10 +182,26 @@ class _FakeSprintRepository implements SprintRepository {
 
   @override
   Future<void> setThemePreference(AppThemePreference preference) async {
-    setThemePreferenceCalls += 1;
-    lastSetThemePreference = preference;
     _themePreference = preference;
     _themeController.add(preference);
+  }
+
+  @override
+  Future<void> setRemoteSyncEnabled(bool enabled) async {
+    _remoteSyncEnabled = enabled;
+    _remoteSyncController.add(enabled);
+  }
+
+  @override
+  Future<void> setUseClientAudio(bool enabled) async {
+    _useClientAudio = enabled;
+    _useClientAudioController.add(enabled);
+  }
+
+  @override
+  Future<void> setManualFullscreenEnabled(bool enabled) async {
+    _manualFullscreenEnabled = enabled;
+    _manualFullscreenController.add(enabled);
   }
 
   @override
@@ -152,6 +211,9 @@ class _FakeSprintRepository implements SprintRepository {
     _syncStateController.close();
     _kFactorController.close();
     _themeController.close();
+    _remoteSyncController.close();
+    _useClientAudioController.close();
+    _manualFullscreenController.close();
   }
 }
 
@@ -160,6 +222,8 @@ class _FakePlatformAdapter implements SprintPlatformAdapter {
       StreamController<LocalSessionState>.broadcast();
   final StreamController<LocalLeaderboardSnapshot> _localSnapshotController =
       StreamController<LocalLeaderboardSnapshot>.broadcast();
+  final StreamController<LocalControlEvent> _localControlController =
+      StreamController<LocalControlEvent>.broadcast();
   final StreamController<String> _errorController =
       StreamController<String>.broadcast();
 
@@ -170,6 +234,10 @@ class _FakePlatformAdapter implements SprintPlatformAdapter {
   @override
   Stream<LocalLeaderboardSnapshot> get localSnapshot =>
       _localSnapshotController.stream;
+
+  @override
+  Stream<LocalControlEvent> get localControlEvents =>
+      _localControlController.stream;
 
   @override
   Stream<String> get errors => _errorController.stream;
@@ -195,6 +263,9 @@ class _FakePlatformAdapter implements SprintPlatformAdapter {
   Future<void> scanLocalHosts(String localEndpointName) async {}
 
   @override
+  Future<void> sendStartMatchBeepControl() async {}
+
+  @override
   Future<void> setImmersiveMode({bool showStatusBar = true}) async {}
 
   @override
@@ -210,6 +281,7 @@ class _FakePlatformAdapter implements SprintPlatformAdapter {
   void dispose() {
     _localSessionController.close();
     _localSnapshotController.close();
+    _localControlController.close();
     _errorController.close();
   }
 }

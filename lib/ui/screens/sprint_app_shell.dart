@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_models.dart';
@@ -16,7 +17,6 @@ import 'match_runner_screen.dart';
 import 'player_list_screen.dart';
 import 'player_profile_screen.dart';
 import 'player_selection_screen.dart';
-import 'settings_screen.dart';
 
 final AudioPlayer _startBeepPlayer = AudioPlayer()
   ..setReleaseMode(ReleaseMode.stop);
@@ -24,7 +24,9 @@ final Future<void> _startBeepPreload = _preloadStartBeep();
 
 Future<void> _preloadStartBeep() async {
   try {
-    await _startBeepPlayer.setSource(AssetSource('assets/sounds/beeps/start.wav'));
+    await _startBeepPlayer.setSource(
+      AssetSource('assets/sounds/beeps/start.wav'),
+    );
   } catch (_) {
     // Ignore preload failures and fall back to direct play.
   }
@@ -47,17 +49,45 @@ Future<void> _playStartBeep() async {
   }
 }
 
-class SprintApp extends ConsumerWidget {
+class SprintApp extends ConsumerStatefulWidget {
   const SprintApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SprintApp> createState() => _SprintAppState();
+}
+
+class _SprintAppState extends ConsumerState<SprintApp> {
+  StreamSubscription<LocalControlEvent>? _controlSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _controlSubscription = ref
+        .read(platformChannelsProvider)
+        .localControlEvents
+        .listen((event) {
+          if (event == LocalControlEvent.startMatchBeep) {
+            unawaited(_playStartBeep());
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _controlSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(sprintControllerProvider);
     final controller = ref.read(sprintControllerProvider.notifier);
-    final useFullscreenLeaderboardShell =
+    final connectedClientFullscreen =
         state.screen == Screen.leaderboard &&
         state.isReadOnlyClientMode &&
         state.localSessionState.phase == LocalSessionPhase.connected;
+    final useFullscreenShell =
+        connectedClientFullscreen || state.manualFullscreenEnabled;
 
     final showHeader =
         <Screen>{
@@ -67,14 +97,16 @@ class SprintApp extends ConsumerWidget {
           Screen.deathMatchSelection,
           Screen.playerList,
           Screen.playerProfile,
-          Screen.settings,
         }.contains(state.screen) &&
-        !useFullscreenLeaderboardShell;
+        !useFullscreenShell;
 
     final showFooter =
         state.screen != Screen.matchRunner &&
         state.screen != Screen.playerProfile &&
-        !useFullscreenLeaderboardShell;
+        !useFullscreenShell;
+
+    final showFloatingSettings =
+        !useFullscreenShell && !state.isReadOnlyClientMode;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -159,8 +191,12 @@ class SprintApp extends ConsumerWidget {
             ),
             Screen.matchRunner => MatchRunnerScreen(
               state: state,
-              onBack: controller.closeRoundToLanding,
-              onClose: controller.closeRoundToLanding,
+              onBack: () {
+                controller.handleBackAction();
+              },
+              onClose: () {
+                controller.handleBackAction();
+              },
               onNextRound: controller.startNextRound,
               onStart: (matchId) {
                 controller.startMatch(matchId);
@@ -193,10 +229,7 @@ class SprintApp extends ConsumerWidget {
               history: state.history,
               onDeleteMatch: controller.deleteMatch,
             ),
-            Screen.settings => SettingsScreen(
-              currentKFactor: state.kFactor,
-              onSelectKFactor: controller.setKFactor,
-            ),
+            Screen.settings => const SizedBox.shrink(),
           };
 
           final headerActions = <AppHeaderAction>[
@@ -217,70 +250,267 @@ class SprintApp extends ConsumerWidget {
                 onPressed: () async {
                   final confirm = await _showResetLeaderboardDialog(appContext);
                   if (confirm) {
-                    controller.resetData();
+                    controller.resetLocalData();
                   }
                 },
               ),
           ];
 
-          return Scaffold(
-            body: useFullscreenLeaderboardShell
-                ? body
-                : SafeArea(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWide = SprintBreakpoints.isWide(
-                          constraints.maxWidth,
-                        );
-                        final horizontalPadding = isWide ? 24.0 : 8.0;
-                        final maxWidth = isWide ? 1100.0 : 900.0;
+          final shellBody = useFullscreenShell
+              ? body
+              : SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = SprintBreakpoints.isWide(
+                        constraints.maxWidth,
+                      );
+                      final horizontalPadding = isWide ? 24.0 : 8.0;
+                      final maxWidth = isWide ? 1100.0 : 900.0;
 
-                        return Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: maxWidth),
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                              ),
-                              child: Column(
-                                children: <Widget>[
-                                  if (showHeader)
-                                    AppHeader(
-                                      title: _headerTitle(state.screen),
-                                      onBack:
-                                          state.isReadOnlyClientMode &&
-                                              state.screen == Screen.leaderboard
-                                          ? null
-                                          : () {
-                                              if (state.screen ==
-                                                  Screen.playerProfile) {
-                                                controller.backFromProfile();
-                                                return;
-                                              }
-                                              controller.navigateTo(
-                                                Screen.landing,
-                                              );
-                                            },
-                                      actions: headerActions,
-                                    ),
-                                  Expanded(child: body),
-                                ],
-                              ),
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
+                            ),
+                            child: Column(
+                              children: <Widget>[
+                                if (showHeader)
+                                  AppHeader(
+                                    title: _headerTitle(state.screen),
+                                    onBack:
+                                        state.isReadOnlyClientMode &&
+                                            state.screen == Screen.leaderboard
+                                        ? null
+                                        : () => _handleBack(controller),
+                                    actions: headerActions,
+                                  ),
+                                Expanded(child: body),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
-            bottomNavigationBar: showFooter
-                ? AppFooter(
-                    currentScreen: state.screen,
-                    disabled: state.isReadOnlyClientMode,
-                    onNavigate: controller.navigateTo,
-                  )
-                : null,
+                );
+
+          return PopScope<void>(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) {
+                _handleBack(controller);
+              }
+            },
+            child: Scaffold(
+              body: Stack(
+                children: <Widget>[
+                  shellBody,
+                  if (state.isSettingsOpen)
+                    _SettingsModal(
+                      state: state,
+                      onClose: controller.closeSettingsModal,
+                      onToggleTheme: controller.toggleThemePreference,
+                      onToggleFullscreen: controller.toggleFullscreen,
+                      onSelectKFactor: controller.setKFactor,
+                      onToggleRemoteSync: controller.toggleRemoteSync,
+                      onToggleClientAudio: controller.toggleClientAudio,
+                      onResetLocal: controller.resetLocalData,
+                      onResetCloud: controller.resetCloudData,
+                      onSeedCloud: controller.seedCloudData,
+                    ),
+                ],
+              ),
+              floatingActionButton: showFloatingSettings
+                  ? FloatingActionButton(
+                      key: const Key('settings-fab'),
+                      onPressed: controller.openSettingsModal,
+                      child: const Icon(Icons.settings_rounded),
+                    )
+                  : null,
+              bottomNavigationBar: showFooter
+                  ? AppFooter(
+                      currentScreen: state.isSettingsOpen
+                          ? Screen.settings
+                          : state.screen,
+                      disabled: state.isReadOnlyClientMode,
+                      onNavigate: (screen) {
+                        if (screen == Screen.settings) {
+                          controller.openSettingsModal();
+                          return;
+                        }
+                        controller.navigateTo(screen);
+                      },
+                    )
+                  : null,
+            ),
           );
         },
+      ),
+    );
+  }
+
+  void _handleBack(SprintController controller) {
+    final shouldExit = controller.handleBackAction();
+    if (shouldExit) {
+      unawaited(SystemNavigator.pop());
+    }
+  }
+}
+
+class _SettingsModal extends StatelessWidget {
+  const _SettingsModal({
+    required this.state,
+    required this.onClose,
+    required this.onToggleTheme,
+    required this.onToggleFullscreen,
+    required this.onSelectKFactor,
+    required this.onToggleRemoteSync,
+    required this.onToggleClientAudio,
+    required this.onResetLocal,
+    required this.onResetCloud,
+    required this.onSeedCloud,
+  });
+
+  final AppState state;
+  final VoidCallback onClose;
+  final VoidCallback onToggleTheme;
+  final ValueChanged<bool> onToggleFullscreen;
+  final ValueChanged<int> onSelectKFactor;
+  final ValueChanged<bool> onToggleRemoteSync;
+  final ValueChanged<bool> onToggleClientAudio;
+  final VoidCallback onResetLocal;
+  final VoidCallback onResetCloud;
+  final VoidCallback onSeedCloud;
+
+  @override
+  Widget build(BuildContext context) {
+    const presets = <int>[8, 16, 24, 32, 40, 48, 64];
+    final isDark = state.themePreference == AppThemePreference.dark;
+
+    return Positioned.fill(
+      child: Stack(
+        children: <Widget>[
+          GestureDetector(
+            key: const Key('settings-modal-backdrop'),
+            onTap: onClose,
+            child: Container(color: Colors.black45),
+          ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 740),
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Text(
+                              'Settings',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              key: const Key('settings-modal-close'),
+                              onPressed: onClose,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Appearance',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile.adaptive(
+                          value: isDark,
+                          onChanged: (_) => onToggleTheme(),
+                          title: const Text('Dark mode'),
+                        ),
+                        SwitchListTile.adaptive(
+                          value: state.manualFullscreenEnabled,
+                          onChanged: onToggleFullscreen,
+                          title: const Text('Fullscreen'),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Match settings',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Elo K-factor (${state.kFactor})'),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: presets
+                              .map(
+                                (preset) => ChoiceChip(
+                                  selected: preset == state.kFactor,
+                                  label: Text('$preset'),
+                                  onSelected: (_) => onSelectKFactor(preset),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile.adaptive(
+                          value: state.remoteSyncEnabled,
+                          onChanged: onToggleRemoteSync,
+                          title: const Text('Remote sync'),
+                        ),
+                        SwitchListTile.adaptive(
+                          value: state.useClientAudio,
+                          onChanged: onToggleClientAudio,
+                          title: const Text('Client audio'),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Data',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: <Widget>[
+                            OutlinedButton(
+                              onPressed: onResetLocal,
+                              child: const Text('Reset local'),
+                            ),
+                            OutlinedButton(
+                              onPressed: state.remoteSyncEnabled
+                                  ? onResetCloud
+                                  : null,
+                              child: const Text('Reset cloud'),
+                            ),
+                            FilledButton(
+                              onPressed: state.remoteSyncEnabled
+                                  ? onSeedCloud
+                                  : null,
+                              child: const Text('Seed cloud'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -315,21 +545,21 @@ Future<bool> _showResetLeaderboardDialog(BuildContext context) async {
   final confirm = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-        title: const Text('Reset Leaderboard?'),
-        content: const Text(
-          'Delete all match history and reset all players to 1200 Elo.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Reset Data'),
-          ),
-        ],
+      title: const Text('Reset Leaderboard?'),
+      content: const Text(
+        'Delete all match history and reset all players to 1200 Elo.',
       ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Reset Data'),
+        ),
+      ],
+    ),
   );
   return confirm == true;
 }

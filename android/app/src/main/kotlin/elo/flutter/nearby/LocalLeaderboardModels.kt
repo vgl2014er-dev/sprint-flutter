@@ -26,6 +26,10 @@ enum class LocalConnectionMedium {
     WIFI,
 }
 
+enum class LocalControlMessage {
+    START_MATCH_BEEP,
+}
+
 data class DiscoveredHost(
     val endpointId: String,
     val displayName: String,
